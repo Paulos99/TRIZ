@@ -959,14 +959,12 @@
                 console.log(`Текстура грани ${i + 1} настроена: rotation=${orientation.rotation.toFixed(3)}, flipX=${orientation.flipX}, flipY=${orientation.flipY}`);
                 
                 // Для прозрачного фона PNG включаем прозрачность
-                // Важно: alphaTest должен быть достаточно низким, чтобы не отсекать полупрозрачные пиксели
-                newMaterials.push(new THREE.MeshStandardMaterial({
+                // Используем MeshBasicMaterial для гарантированного отображения без зависимости от освещения
+                newMaterials.push(new THREE.MeshBasicMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
                     transparent: true,
                     opacity: 1.0,
-                    metalness: 0.1,
-                    roughness: 0.7,
                     alphaTest: 0.01 // Низкий порог для корректного отображения прозрачности
                 }));
                 
@@ -1034,13 +1032,11 @@
                 tempTexture.repeat.y = -1;
             }
             
-            newMaterials.push(new THREE.MeshStandardMaterial({
+            newMaterials.push(new THREE.MeshBasicMaterial({
                 map: tempTexture,
                 side: THREE.DoubleSide,
                 transparent: false,
-                opacity: 1.0,
-                metalness: 0.1,
-                roughness: 0.7
+                opacity: 1.0
             }));
         }
             
@@ -1183,25 +1179,27 @@
                 for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
                     const group = geometry.groups[groupIndex];
                     
-                    // Собираем все уникальные индексы вершин для этой группы
-                    const vertexIndices = [];
+                    // Собираем все индексы вершин для этой группы (включая дубликаты для правильного UV-маппинга)
+                    const allVertexIndices = [];
+                    const uniqueVertexIndices = [];
                     const vertexSet = new Set();
                     
                     for (let i = 0; i < group.count; i++) {
                         const indexPos = group.start + i;
                         if (indexPos < indices.count) {
                             const vertexIndex = indices.getX(indexPos);
+                            allVertexIndices.push(vertexIndex);
                             if (!vertexSet.has(vertexIndex)) {
                                 vertexSet.add(vertexIndex);
-                                vertexIndices.push(vertexIndex);
+                                uniqueVertexIndices.push(vertexIndex);
                             }
                         }
                     }
                     
-                    if (vertexIndices.length < 3) continue;
+                    if (uniqueVertexIndices.length < 3) continue;
                     
-                    // Получаем вершины грани
-                    const vertices = vertexIndices.map(idx => new THREE.Vector3(
+                    // Получаем уникальные вершины грани для вычисления нормали и базиса
+                    const vertices = uniqueVertexIndices.map(idx => new THREE.Vector3(
                         positions.getX(idx),
                         positions.getY(idx),
                         positions.getZ(idx)
@@ -1230,16 +1228,17 @@
                     vertices.forEach(v => center.add(v));
                     center.divideScalar(vertices.length);
                     
-                    // Проецируем вершины на плоскость и вычисляем UV
+                    // Проецируем уникальные вершины на плоскость и вычисляем UV
                     let minU = Infinity, maxU = -Infinity;
                     let minV = Infinity, maxV = -Infinity;
-                    const projectedUVs = [];
+                    const vertexUVMap = new Map();
                     
-                    vertices.forEach((vertex, idx) => {
+                    uniqueVertexIndices.forEach((vertexIndex, idx) => {
+                        const vertex = vertices[idx];
                         const localPos = new THREE.Vector3().subVectors(vertex, center);
                         const u = localPos.dot(right);
                         const v = localPos.dot(forward);
-                        projectedUVs.push({ u, v, vertexIndex: vertexIndices[idx] });
+                        vertexUVMap.set(vertexIndex, { u, v });
                         minU = Math.min(minU, u);
                         maxU = Math.max(maxU, u);
                         minV = Math.min(minV, v);
@@ -1251,11 +1250,14 @@
                     const rangeV = maxV - minV || 1;
                     const scale = 0.8; // Масштаб для учета краев
                     
-                    projectedUVs.forEach(({ u, v, vertexIndex }) => {
-                        // Нормализуем и центрируем
-                        const normalizedU = 0.5 + (u - (minU + maxU) / 2) / rangeU * scale;
-                        const normalizedV = 0.5 + (v - (minV + maxV) / 2) / rangeV * scale;
-                        uv.setXY(vertexIndex, normalizedU, normalizedV);
+                    // Применяем UV-координаты ко всем индексам в группе
+                    allVertexIndices.forEach(vertexIndex => {
+                        const uvData = vertexUVMap.get(vertexIndex);
+                        if (uvData) {
+                            const normalizedU = 0.5 + (uvData.u - (minU + maxU) / 2) / rangeU * scale;
+                            const normalizedV = 0.5 + (uvData.v - (minV + maxV) / 2) / rangeV * scale;
+                            uv.setXY(vertexIndex, normalizedU, normalizedV);
+                        }
                     });
                 }
                 
