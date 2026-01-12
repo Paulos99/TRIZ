@@ -475,44 +475,6 @@
         camera.lookAt(0, 0, 0); // Явно указываем камере смотреть на центр сцены
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        
-        // Перехватываем ошибки WebGL
-        const gl = renderer.getContext();
-        const originalGetError = gl.getError;
-        let errorCount = 0;
-        gl.getError = function() {
-            const error = originalGetError.call(this);
-            if (error !== gl.NO_ERROR && errorCount < 10) { // Ограничиваем количество логов
-                errorCount++;
-                const errorNames = {
-                    [gl.NO_ERROR]: 'NO_ERROR',
-                    [gl.INVALID_ENUM]: 'INVALID_ENUM',
-                    [gl.INVALID_VALUE]: 'INVALID_VALUE',
-                    [gl.INVALID_OPERATION]: 'INVALID_OPERATION',
-                    [gl.INVALID_FRAMEBUFFER_OPERATION]: 'INVALID_FRAMEBUFFER_OPERATION',
-                    [gl.OUT_OF_MEMORY]: 'OUT_OF_MEMORY',
-                    [gl.CONTEXT_LOST_WEBGL]: 'CONTEXT_LOST_WEBGL'
-                };
-                const errorName = errorNames[error] || `UNKNOWN(${error})`;
-                console.error(`[WebGL Error ${errorCount}] ${errorName}`);
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'WebGL ошибка обнаружена',data:{errorCode:error,errorName:errorName,errorCount:errorCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-            }
-            return error;
-        };
-        
-        // Перехватываем ошибки консоли
-        const originalError = console.error;
-        console.error = function(...args) {
-            originalError.apply(console, args);
-            const errorStr = args.map(a => String(a)).join(' ');
-            if (errorStr.includes('SecurityError') || errorStr.includes('Tainted') || errorStr.includes('texImage2D') || errorStr.includes('GL_INVALID')) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'Критическая ошибка консоли',data:{errorMessage:errorStr},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-            }
-        };
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         // Возвращаем исходный тёмный фон
@@ -649,183 +611,55 @@
         // Функция загрузки изображения с обработкой CORS
         function loadImageAsTexture(filename) {
             return new Promise((resolve, reject) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:612',message:'Начало загрузки текстуры',data:{filename:filename,currentURL:window.location.href,protocol:window.location.protocol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-                
                 const textureLoader = new THREE.TextureLoader();
-                
-                // Для file:// протокола пробуем сначала локальные пути
-                const isFileProtocolLocal = window.location.protocol === 'file:';
-                let texturePath = filename;
-                
-                if (isFileProtocolLocal) {
-                    // Для file:// формируем полный путь к файлу
-                    const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-                    texturePath = `${currentDir}${filename}`;
-                    console.log(`[file://] Пробуем загрузить через TextureLoader: ${texturePath}`);
-                }
                 
                 // Пробуем загрузить через TextureLoader
                 textureLoader.load(
-                    texturePath,
+                    filename,
                     (texture) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:619',message:'Текстура загружена через TextureLoader',data:{filename:filename,textureWidth:texture.image?.width,textureHeight:texture.image?.height,imageComplete:texture.image?.complete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
-                        
                         // Настраиваем текстуру для правильного отображения
                         texture.wrapS = THREE.ClampToEdgeWrapping;
                         texture.wrapT = THREE.ClampToEdgeWrapping;
                         texture.flipY = false;
-                        texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
-                        texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
-                        texture.magFilter = THREE.LinearFilter;
-                        // Зеркальное отражение текстуры по горизонтали
-                        texture.offset.set(1, 0);
-                        texture.repeat.set(-1, 1);
-                        texture.center.set(0.5, 0.5);
                         resolve(texture);
                     },
                     undefined,
                     (error) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:627',message:'TextureLoader не удалось, пробуем через Image',data:{filename:filename,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
-                        
                         // Если не удалось, пробуем через Image и Canvas
                         const img = new Image();
-                        
-                        // Для file:// протокола не используем crossOrigin, чтобы избежать CORS ошибок
-                        const isFileProtocolLocal = window.location.protocol === 'file:';
-                        if (!isFileProtocolLocal) {
-                            img.crossOrigin = 'anonymous';
-                        }
+                        img.crossOrigin = 'anonymous';
                         
                         img.onload = function() {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:660',message:'Изображение загружено через Image',data:{filename:filename,imageWidth:img.width,imageHeight:img.height,imageSrc:img.src,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                            // #endregion
-                            
-                            // Для file:// протокола используем CanvasTexture БЕЗ crossOrigin
-                            // чтобы избежать проблем с CORS и "tainted canvas"
                             const canvas = document.createElement('canvas');
                             canvas.width = img.width;
                             canvas.height = img.height;
                             const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
                             
-                            // Для file:// протокола не используем crossOrigin на canvas
-                            // Это позволяет избежать ошибки "cross-origin data"
-                            try {
-                                ctx.drawImage(img, 0, 0);
-                                
-                                const texture = new THREE.CanvasTexture(canvas);
-                                texture.wrapS = THREE.ClampToEdgeWrapping;
-                                texture.wrapT = THREE.ClampToEdgeWrapping;
-                                texture.flipY = false;
-                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
-                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
-                                texture.magFilter = THREE.LinearFilter;
-                                // Зеркальное отражение текстуры по горизонтали
-                                texture.offset.set(1, 0);
-                                texture.repeat.set(-1, 1);
-                                texture.center.set(0.5, 0.5);
-                                resolve(texture);
-                            } catch (e) {
-                                // Если не удалось создать CanvasTexture, пробуем напрямую через Texture
-                                console.warn(`Не удалось создать CanvasTexture для ${filename}, пробуем Texture:`, e);
-                                const texture = new THREE.Texture(img);
-                                texture.wrapS = THREE.ClampToEdgeWrapping;
-                                texture.wrapT = THREE.ClampToEdgeWrapping;
-                                texture.flipY = false;
-                                texture.needsUpdate = true;
-                                texture.generateMipmaps = false;
-                                texture.minFilter = THREE.LinearFilter;
-                                texture.magFilter = THREE.LinearFilter;
-                                texture.offset.set(1, 0);
-                                texture.repeat.set(-1, 1);
-                                texture.center.set(0.5, 0.5);
-                                resolve(texture);
-                            }
+                            const texture = new THREE.CanvasTexture(canvas);
+                            texture.wrapS = THREE.ClampToEdgeWrapping;
+                            texture.wrapT = THREE.ClampToEdgeWrapping;
+                            texture.flipY = false;
+                            resolve(texture);
                         };
                         
                         img.onerror = function() {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:646',message:'Не удалось загрузить изображение, создаем заглушку',data:{filename:filename,lastTriedPath:img.src,pathIndex:pathIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                            // #endregion
-                            
                             // Создаем заглушку
                             resolve(createPlaceholderTexture(filename));
                         };
                         
-                        // Пробуем разные пути, включая GitHub raw URLs и локальные файлы
-                        const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
-                        const origin = window.location.origin;
-                        const pathParts = window.location.pathname.split('/').filter(p => p);
-                        
-                        // Формируем пути для загрузки
-                        const paths = [];
-                        
-                        if (isFileProtocolLocal) {
-                            // Для file:// протокола пробуем локальные пути
-                            const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-                            paths.push(
-                                filename, // Относительный путь
-                                `./${filename}`, // Текущая директория
-                                `${currentDir}${filename}`, // Полный путь к файлу
-                                `${basePath}/${filename}`, // Относительно basePath
-                                `${origin}${basePath}/${filename}` // С протоколом file://
-                            );
-                            console.log(`[file://] Пробуем загрузить ${filename} из директории: ${currentDir}`);
-                        } else {
-                            // Для HTTP/HTTPS протоколов
-                            paths.push(
-                                filename, // Относительный путь
-                                `./${filename}`, // Текущая директория
-                                `${basePath}/${filename}`, // Относительно basePath
-                                `${origin}${basePath}/${filename}` // Полный путь для GitHub Pages
-                            );
-                        }
-                        
-                        // Если это GitHub Pages, добавляем путь к raw content
-                        if (origin.includes('github.io') && pathParts.length >= 2) {
-                            const user = pathParts[0];
-                            const repo = pathParts[1];
-                            // Пробуем разные ветки GitHub
-                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
-                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
-                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/gh-pages/${filename}`);
-                            // Также пробуем через GitHub Pages напрямую
-                            paths.push(`https://${user}.github.io/${repo}/${filename}`);
-                        }
-                        
-                        // Если это обычный GitHub репозиторий (не Pages), пробуем raw content
-                        if (origin.includes('github.com') && !origin.includes('github.io')) {
-                            const urlParts = window.location.href.split('/');
-                            const userIndex = urlParts.findIndex(p => p.includes('github.com')) + 1;
-                            if (userIndex > 0 && urlParts[userIndex + 1]) {
-                                const user = urlParts[userIndex];
-                                const repo = urlParts[userIndex + 1];
-                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
-                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
-                            }
-                        }
-                        
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:651',message:'Пробуем пути загрузки',data:{filename:filename,paths:paths,basePath:basePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
+                        // Пробуем разные пути
+                        const paths = [
+                            filename,
+                            `./${filename}`,
+                            `${window.location.pathname.replace(/\/[^/]*$/, '')}/${filename}`
+                        ];
                         
                         let pathIndex = 0;
                         const tryNextPath = () => {
                             if (pathIndex < paths.length) {
-                                const currentPath = paths[pathIndex++];
-                                console.log(`[${isFileProtocolLocal ? 'file://' : 'http'}] Пробуем загрузить ${filename} по пути: ${currentPath}`);
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:718',message:'Пробуем путь загрузки',data:{filename:filename,pathIndex:pathIndex-1,totalPaths:paths.length,currentPath:currentPath,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                // #endregion
-                                img.src = currentPath;
+                                img.src = paths[pathIndex++];
                             } else {
-                                console.error(`[${isFileProtocolLocal ? 'file://' : 'http'}] Все пути для ${filename} исчерпаны, создаем заглушку`);
                                 img.onerror();
                             }
                         };
@@ -966,6 +800,106 @@
             progressPercent.textContent = percent + '%';
         }
         
+        // Функция вычисления ориентации грани для правильного наложения текстуры
+        function calculateFaceOrientation(geometry, faceIndex) {
+            const group = geometry.groups[faceIndex];
+            if (!group) return { rotation: 0, flipX: false, flipY: false };
+            
+            const positions = geometry.attributes.position;
+            const indices = geometry.index;
+            if (!positions || !indices) return { rotation: 0, flipX: false, flipY: false };
+            
+            // Собираем все уникальные индексы вершин для этой грани
+            const vertexIndices = [];
+            const vertexSet = new Set();
+            
+            for (let i = 0; i < group.count; i++) {
+                const indexPos = group.start + i;
+                if (indexPos < indices.count) {
+                    const vertexIndex = indices.getX(indexPos);
+                    if (!vertexSet.has(vertexIndex)) {
+                        vertexSet.add(vertexIndex);
+                        vertexIndices.push(vertexIndex);
+                    }
+                }
+            }
+            
+            if (vertexIndices.length < 3) return { rotation: 0, flipX: false, flipY: false };
+            
+            // Получаем вершины грани
+            const vertices = vertexIndices.map(idx => new THREE.Vector3(
+                positions.getX(idx),
+                positions.getY(idx),
+                positions.getZ(idx)
+            ));
+            
+            // Вычисляем нормаль грани
+            const v0 = vertices[0];
+            const v1 = vertices[1];
+            const v2 = vertices[2];
+            let normal = new THREE.Vector3()
+                .subVectors(v1, v0)
+                .cross(new THREE.Vector3().subVectors(v2, v0))
+                .normalize();
+            
+            // Убеждаемся, что нормаль направлена наружу (от центра додекаэдра)
+            const center = new THREE.Vector3();
+            vertices.forEach(v => center.add(v));
+            center.divideScalar(vertices.length);
+            const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), center);
+            if (normal.dot(toCenter) > 0) {
+                normal.negate();
+            }
+            
+            // Находим самую верхнюю вершину (с максимальным Y в мировых координатах)
+            let topVertex = vertices[0];
+            for (let i = 1; i < vertices.length; i++) {
+                if (vertices[i].y > topVertex.y) {
+                    topVertex = vertices[i];
+                }
+            }
+            
+            // Вычисляем направление от центра к верхней вершине
+            const toTop = new THREE.Vector3().subVectors(topVertex, center).normalize();
+            
+            // Создаем локальную систему координат на грани
+            // Используем мировую ось Y как опорную для создания базиса
+            const worldUp = new THREE.Vector3(0, 1, 0);
+            let right = new THREE.Vector3().crossVectors(worldUp, normal).normalize();
+            
+            // Если нормаль параллельна Y, используем другую ось
+            if (right.length() < 0.1) {
+                const worldRight = new THREE.Vector3(1, 0, 0);
+                right = new THREE.Vector3().crossVectors(worldRight, normal).normalize();
+            }
+            
+            const up = new THREE.Vector3().crossVectors(normal, right).normalize();
+            
+            // Проецируем направление к верхней вершине на плоскость грани
+            const toTopInPlane = new THREE.Vector3()
+                .addScaledVector(right, toTop.dot(right))
+                .addScaledVector(up, toTop.dot(up))
+                .normalize();
+            
+            // Вычисляем угол поворота текстуры
+            // В текстуре "вверх" соответствует направлению (0, 1) в UV-координатах
+            // Нам нужно выровнять направление к верхней вершине с направлением "вверх" в текстуре
+            // atan2(y, x) дает угол от оси X
+            const angle = Math.atan2(toTopInPlane.dot(up), toTopInPlane.dot(right));
+            
+            // Для додекаэдра каждая грань имеет свою ориентацию
+            // Определяем необходимость отражения на основе ориентации нормали
+            // Если нормаль направлена в отрицательном направлении по какой-то оси, может потребоваться отражение
+            const needsFlipX = Math.abs(normal.x) > 0.7 && normal.x < 0;
+            const needsFlipY = Math.abs(normal.y) > 0.7 && normal.y < 0;
+            
+            return {
+                rotation: angle,
+                flipX: needsFlipX,
+                flipY: needsFlipY
+            };
+        }
+        
         // Загрузка реальных изображений для всех 12 граней
         const textures = [];
         const texturePromises = [];
@@ -976,45 +910,24 @@
             const filename = `${String(i).padStart(3, '0')}.png`;
             texturePromises.push(
                 loadImageAsTexture(filename).then(texture => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:843',message:'Текстура получена, настраиваем',data:{filename:filename,textureType:texture.constructor.name,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height,isPlaceholder:texture.image?.width===512&&texture.image?.height===512},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
-                    
-                    // Проверяем, не является ли это заглушкой
-                    const isPlaceholder = texture.image && texture.image.width === 512 && texture.image.height === 512;
-                    if (isPlaceholder) {
-                        console.warn(`⚠ Текстура ${filename} не загрузилась, используется заглушка`);
-                    }
-                    
                     // Настраиваем текстуру для правильного отображения пятиугольника
-                    // Изображение 2111x2001, пятиугольник с прозрачным фоном
+                    // Изображение 2111x2001, пятиугольник находится в центре с прозрачным фоном
                     texture.wrapS = THREE.ClampToEdgeWrapping;
                     texture.wrapT = THREE.ClampToEdgeWrapping;
                     texture.flipY = false; // Важно для правильной ориентации
-                    texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
-                    texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
-                    texture.magFilter = THREE.LinearFilter;
                     
-                    // Зеркальное отражение текстуры по горизонтали
-                    texture.offset.set(1, 0);
-                    texture.repeat.set(-1, 1);
+                    // Базовые настройки - ориентация будет настроена позже для каждой грани
+                    texture.offset.set(0, 0);
+                    texture.repeat.set(1, 1);
                     texture.center.set(0.5, 0.5);
-                    
-                    // Включаем прозрачность для PNG с альфа-каналом
-                    if (texture.image && texture.image.complete) {
-                        // Текстура уже загружена
-                    }
+                    texture.rotation = 0;
                     
                     textures[i - 1] = texture;
                     loadedCount++;
                     updateProgress(loadedCount, totalTextures);
-                    console.log(`✓ Текстура ${filename} загружена успешно (${loadedCount}/${totalTextures})${isPlaceholder ? ' [ЗАГЛУШКА]' : ''} - размер: ${texture.image?.width}x${texture.image?.height}`);
+                    console.log(`✓ Текстура ${filename} загружена успешно (${loadedCount}/${totalTextures})`);
                     return texture;
                 }).catch(err => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:865',message:'Ошибка загрузки текстуры',data:{filename:filename,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
-                    
                     console.warn(`⚠ Не удалось загрузить ${filename}, используем заглушку:`, err);
                     // Используем пронумерованную текстуру как заглушку
                     const placeholder = createNumberedTexture(i);
@@ -1030,78 +943,47 @@
         Promise.all(texturePromises).then(() => {
             console.log('Все текстуры загружены:', textures.length);
             
+            // Используем уже вычисленную ориентацию для каждой грани
+            // (вычислена ранее для временных материалов)
+            
             // Создаем материалы с текстурами для каждой грани
             const newMaterials = [];
             for (let i = 0; i < 12; i++) {
                 const texture = textures[i];
+                const orientation = faceOrientations[i];
                 
-                // Проверяем, что текстура существует и загружена
-                if (!texture) {
-                    console.error(`Текстура для грани ${i+1} отсутствует!`);
-                    // Используем пронумерованную текстуру как заглушку
-                    const placeholder = createNumberedTexture(i + 1);
-                    newMaterials.push(new THREE.MeshStandardMaterial({
-                        map: placeholder,
-                        side: THREE.DoubleSide,
-                        transparent: false,
-                        opacity: 1.0,
-                        metalness: 0.1,
-                        roughness: 0.7
-                    }));
-                    continue;
+                // Применяем ориентацию к текстуре
+                // Сначала сбрасываем все трансформации
+                texture.offset.set(0, 0);
+                texture.repeat.set(1, 1);
+                texture.center.set(0.5, 0.5);
+                texture.rotation = 0;
+                
+                // Применяем поворот
+                texture.rotation = orientation.rotation;
+                
+                // Зеркальное отражение по горизонтали для всех текстур
+                texture.offset.x = 1;
+                texture.repeat.x = -1;
+                
+                // Применяем дополнительные отражения если нужно (после поворота и базового отражения)
+                if (orientation.flipY) {
+                    texture.offset.y = 1;
+                    texture.repeat.y = -1;
                 }
                 
-                // Убеждаемся, что настройки текстур применены (на случай если они были перезаписаны)
-                // Проверяем, что текстура действительно загружена
-                if (!texture.image || !texture.image.complete) {
-                    console.warn(`Текстура для грани ${i+1} не загружена полностью, используем заглушку`);
-                    const placeholder = createNumberedTexture(i + 1);
-                    newMaterials.push(new THREE.MeshStandardMaterial({
-                        map: placeholder,
-                        side: THREE.DoubleSide,
-                        transparent: false,
-                        opacity: 1.0,
-                        metalness: 0.1,
-                        roughness: 0.7
-                    }));
-                    continue;
-                }
+                console.log(`Текстура грани ${i + 1} настроена: rotation=${orientation.rotation.toFixed(3)}, flipX=${orientation.flipX}, flipY=${orientation.flipY}`);
                 
-                texture.generateMipmaps = false;
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.needsUpdate = true;
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1036',message:'Проверка текстуры перед применением',data:{faceIndex:i+1,textureType:texture.type,generateMipmaps:texture.generateMipmaps,minFilter:texture.minFilter,magFilter:texture.magFilter,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height,imageComplete:texture.image?.complete,imageSrc:texture.image?.src,isPlaceholder:texture.image?.width===512},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-                
-                // Включаем прозрачность для PNG с альфа-каналом
-                // ВАЖНО: Применяем зеркальное отражение ПОСЛЕ создания материала
-                // чтобы избежать проблем с SecurityError
-                const material = new THREE.MeshStandardMaterial({
+                // Для прозрачного фона PNG включаем прозрачность
+                newMaterials.push(new THREE.MeshStandardMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
-                    transparent: true, // Включаем прозрачность для PNG
+                    transparent: true,
                     opacity: 1.0,
                     metalness: 0.1,
                     roughness: 0.7,
-                    alphaTest: 0.01 // Отсечение полностью прозрачных пикселей
-                });
-                
-                // Применяем зеркальное отражение после создания материала
-                if (texture && texture.image && texture.image.complete) {
-                    // Зеркальное отражение уже применено при загрузке текстуры
-                    // Но убеждаемся, что оно не потерялось
-                    if (texture.offset.x !== 1 || texture.repeat.x !== -1) {
-                        texture.offset.set(1, 0);
-                        texture.repeat.set(-1, 1);
-                        texture.center.set(0.5, 0.5);
-                        texture.needsUpdate = true;
-                    }
-                }
-                
-                newMaterials.push(material);
+                    alphaTest: 0.1 // Отсекаем полностью прозрачные пиксели
+                }));
             }
             
             // Применяем массив материалов
@@ -1121,16 +1003,36 @@
             }
         });
         
+        // Вычисляем ориентацию для каждой грани заранее (для использования в временных и реальных материалах)
+        const faceOrientations = [];
+        for (let i = 0; i < 12; i++) {
+            faceOrientations.push(calculateFaceOrientation(geometry, i));
+            console.log(`Ориентация грани ${i + 1}:`, faceOrientations[i]);
+        }
+        
         // Временно создаем материалы с пронумерованными текстурами для отображения до загрузки
-        // ВАЖНО: Этот блок выполняется ДО Promise.all, чтобы показать модель сразу
-        const tempMaterials = [];
+        const newMaterials = [];
         for (let i = 0; i < 12; i++) {
             const tempTexture = createNumberedTexture(i + 1);
+            const orientation = faceOrientations[i];
+            
+            // Применяем ориентацию к временной текстуре
             tempTexture.offset.set(0, 0);
             tempTexture.repeat.set(1, 1);
             tempTexture.center.set(0.5, 0.5);
+            tempTexture.rotation = orientation.rotation;
             
-            tempMaterials.push(new THREE.MeshStandardMaterial({
+            // Зеркальное отражение по горизонтали для всех текстур
+            tempTexture.offset.x = 1;
+            tempTexture.repeat.x = -1;
+            
+            // Применяем дополнительные отражения если нужно
+            if (orientation.flipY) {
+                tempTexture.offset.y = 1;
+                tempTexture.repeat.y = -1;
+            }
+            
+            newMaterials.push(new THREE.MeshStandardMaterial({
                 map: tempTexture,
                 side: THREE.DoubleSide,
                 transparent: false,
@@ -1138,12 +1040,6 @@
                 metalness: 0.1,
                 roughness: 0.7
             }));
-        }
-        
-        // Применяем временные материалы сразу, чтобы модель была видна
-        if (window.dodecahedron) {
-            window.dodecahedron.material = tempMaterials;
-            window.dodecahedron.visible = true;
         }
             
             // Проверяем структуру геометрии
@@ -1334,28 +1230,13 @@
                         .cross(new THREE.Vector3().subVectors(v2, v0))
                         .normalize();
                     
-                    // Создаем стабильный базис для проекции на плоскость грани
-                    // Используем более предсказуемый способ определения ориентации
-                    const worldRight = new THREE.Vector3(1, 0, 0);
-                    
-                    // Вычисляем right как проекцию worldRight на плоскость грани
-                    // Проекция: v - (v·n) * n
-                    const dot = worldRight.dot(normal);
-                    const right = new THREE.Vector3().subVectors(
-                        worldRight,
-                        normal.clone().multiplyScalar(dot)
-                    ).normalize();
-                    
-                    // Если right слишком мал (грань почти перпендикулярна worldRight), используем другой базис
+                    // Создаем базис для проекции на плоскость грани
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
                     if (right.length() < 0.1) {
-                        const worldForward = new THREE.Vector3(0, 0, 1);
-                        const dot2 = worldForward.dot(normal);
-                        right.copy(worldForward).sub(
-                            normal.clone().multiplyScalar(dot2)
-                        ).normalize();
+                        up.set(1, 0, 0);
+                        right.crossVectors(up, normal).normalize();
                     }
-                    
-                    // Forward перпендикулярен normal и right
                     const forward = new THREE.Vector3().crossVectors(normal, right).normalize();
                     
                     // Вычисляем центр грани
@@ -1379,36 +1260,15 @@
                         maxV = Math.max(maxV, v);
                     });
                     
-                    // Нормализуем UV-координаты к диапазону [0, 1] с учетом соотношения сторон текстуры
-                    // Текстуры имеют размер 2111x2001, соотношение сторон ≈ 1.055
+                    // Нормализуем UV-координаты к диапазону [0, 1] и центрируем
                     const rangeU = maxU - minU || 1;
                     const rangeV = maxV - minV || 1;
-                    
-                    // Вычисляем соотношение сторон грани
-                    const faceAspectRatio = rangeU / rangeV;
-                    // Соотношение сторон текстуры
-                    const textureAspectRatio = 2111 / 2001; // ≈ 1.055
-                    
-                    // Масштабируем UV так, чтобы текстура соответствовала грани 1:1
-                    // Используем полный размер (scale = 1.0) для точного соответствия
-                    const scale = 1.0;
-                    
-                    // Учитываем соотношение сторон для правильного наложения
-                    let scaleU = scale;
-                    let scaleV = scale;
-                    
-                    // Если грань шире, чем текстура, масштабируем по V
-                    if (faceAspectRatio > textureAspectRatio) {
-                        scaleV = scale * (textureAspectRatio / faceAspectRatio);
-                    } else {
-                        // Если грань выше, чем текстура, масштабируем по U
-                        scaleU = scale * (faceAspectRatio / textureAspectRatio);
-                    }
+                    const scale = 0.8; // Масштаб для учета краев
                     
                     projectedUVs.forEach(({ u, v, vertexIndex }) => {
-                        // Нормализуем и центрируем с учетом соотношения сторон
-                        const normalizedU = 0.5 + (u - (minU + maxU) / 2) / rangeU * scaleU;
-                        const normalizedV = 0.5 + (v - (minV + maxV) / 2) / rangeV * scaleV;
+                        // Нормализуем и центрируем
+                        const normalizedU = 0.5 + (u - (minU + maxU) / 2) / rangeU * scale;
+                        const normalizedV = 0.5 + (v - (minV + maxV) / 2) / rangeV * scale;
                         uv.setXY(vertexIndex, normalizedU, normalizedV);
                     });
                 }
@@ -1450,17 +1310,13 @@
             fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:500',message:'Текстуры загружены',data:{texturesLoaded:textures.length,materialsReplaced:newMaterials.length,newMaterialType:currentMaterialForLog?.type,hasTexture:!!currentMaterialForLog?.map,isMaterialArray:Array.isArray(window.dodecahedron.material),materialCount:Array.isArray(window.dodecahedron.material)?window.dodecahedron.material.length:1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
             // #endregion
             
-        // Диагностика после применения материалов
-        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ МАТЕРИАЛОВ ===');
-        if (window.dodecahedron && window.dodecahedron.material) {
-            const materials = Array.isArray(window.dodecahedron.material) ? window.dodecahedron.material : [window.dodecahedron.material];
-            console.log('Новый тип материала:', materials[0]?.type);
-            console.log('Материал имеет текстуру:', !!materials[0]?.map);
-            console.log('Размер текстуры:', materials[0]?.map ? `${materials[0].map.image?.width}x${materials[0].map.image?.height}` : 'нет');
-            console.log('Додекаэдр visible:', window.dodecahedron.visible);
-            console.log('Количество материалов:', materials.length);
-            console.log('Материалы с текстурами:', materials.map(m => !!m?.map).join(', '));
-        }
+        console.log('Белые пронумерованные текстуры применены');
+        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
+        console.log('Новый тип материала:', newMaterials[0]?.type);
+        console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
+        console.log('Размер текстуры:', newMaterials[0]?.map ? `${newMaterials[0].map.image?.width}x${newMaterials[0].map.image?.height}` : 'нет');
+        console.log('Додекаэдр visible:', window.dodecahedron.visible);
+        console.log('Додекаэдр material:', window.dodecahedron.material);
         
         // Система выбора и вращения грани - объявляем переменные ДО использования
         let selectedFaceIndex = -1;
