@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D ТРИЗ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #0a0a0f;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .controls-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.92);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 20px;
+            padding: 14px 24px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 95%;
+        }
+
+        .face-controls-panel {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.92);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 20px;
+            padding: 14px 24px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            display: none;
+            gap: 14px;
+            align-items: center;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 95%;
+        }
+
+        .face-controls-panel.active {
+            display: flex;
+        }
+
+        .face-controls-panel .label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-right: 8px;
+            font-weight: 300;
+        }
+
+        .btn-face {
+            background: rgba(100, 150, 255, 0.15);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-face:hover {
+            background: rgba(100, 150, 255, 0.25);
+            border-color: rgba(100, 150, 255, 0.4);
+        }
+
+        .btn-face:active {
+            background: rgba(100, 150, 255, 0.3);
+        }
+
+        /* Список граней (номера 1–12) */
+        .face-list {
+            position: fixed;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
+            background: rgba(15, 20, 35, 0.96);
+            border-radius: 18px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            z-index: 150; /* выше панели и подсказок */
+            max-height: 80%;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .face-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        .face-list-item {
+            min-width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.25);
+            background: rgba(30, 35, 50, 0.6);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0 10px;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .face-list-item:hover {
+            background: rgba(50, 70, 100, 0.7);
+            border-color: rgba(100, 150, 255, 0.4);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(100, 150, 255, 0.25);
+        }
+
+        .face-list-item.active {
+            background: linear-gradient(135deg, rgba(100, 150, 255, 0.95) 0%, rgba(120, 170, 255, 0.95) 100%);
+            border-color: rgba(100, 150, 255, 1);
+            color: #0a0a0f;
+            font-weight: 700;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(100, 150, 255, 0.5), 0 0 25px rgba(100, 150, 255, 0.4);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .control-group label {
+            display: none;
+        }
+
+        .btn {
+            background: rgba(30, 35, 50, 0.7);
+            border: 1px solid rgba(100, 150, 255, 0.25);
+            color: rgba(255, 255, 255, 0.95);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(100, 150, 255, 0);
+        }
+
+        .btn:hover {
+            background: rgba(50, 70, 100, 0.8);
+            border-color: rgba(100, 150, 255, 0.5);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(100, 150, 255, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+            background: rgba(70, 100, 150, 0.9);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 10px rgba(100, 150, 255, 0.2);
+        }
+
+        .title {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.98);
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            z-index: 100;
+            text-align: center;
+            text-shadow: 0 2px 20px rgba(100, 150, 255, 0.4), 0 0 40px rgba(100, 150, 255, 0.2);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(200, 220, 255, 0.95) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .info {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .face-list {
+                top: auto;
+                bottom: 110px;
+                right: 12px;
+                transform: none;
+                flex-direction: row;
+                max-width: 85%;
+                max-height: none;
+                padding: 6px 8px;
+            }
+            .controls-panel {
+                bottom: 12px;
+                padding: 10px 12px;
+                gap: 8px;
+                border-radius: 12px;
+            }
+
+            .btn {
+                width: 48px;
+                height: 48px;
+                font-size: 20px;
+            }
+
+            .title {
+                font-size: 28px;
+                top: 16px;
+                letter-spacing: 2px;
+            }
+
+            .control-group {
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls-panel {
+                bottom: 8px;
+                padding: 8px 10px;
+                gap: 6px;
+            }
+
+            .btn {
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+            }
+
+            .title {
+                font-size: 22px;
+                top: 12px;
+                letter-spacing: 1.5px;
+            }
+        }
+
+        .separator {
+            display: none;
+        }
+
+        .hint-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 32px 40px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .hint-notification.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(100, 150, 255, 0.8) 0%, rgba(120, 170, 255, 0.9) 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+        }
+
+        .progress-percent {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-top: 12px;
+            font-weight: 300;
+        }
+
+        @media (max-width: 768px) {
+            .loading-text {
+                font-size: 20px;
+            }
+
+            .progress-bar-container {
+                width: 250px;
+            }
+        }
+
+        .hint-notification h3 {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .hint-notification p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .hint-notification .hint-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.8;
+        }
+
+        .hint-notification .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .hint-notification .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .hint-notification {
+                padding: 24px 28px;
+                border-radius: 16px;
+            }
+
+            .hint-notification h3 {
+                font-size: 20px;
+                margin-bottom: 16px;
+            }
+
+            .hint-notification p {
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+
+            .hint-notification .hint-icon {
+                font-size: 36px;
+                margin-bottom: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="title">3D ТРИЗ</div>
+    <div id="canvas-container"></div>
+    
+    <div class="face-list" id="face-list"></div>
+    
+    <!-- Оверлей загрузки -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-text">Загрузка материалов..</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="progress-percent" id="progress-percent">0%</div>
+    </div>
+
+    <div class="controls-panel">
+        <button class="btn" id="zoom-in" title="Приблизить">+</button>
+        <button class="btn" id="zoom-out" title="Отдалить">−</button>
+        <button class="btn" id="reset" title="Сбросить вид">⟲</button>
+    </div>
+
+    <div class="face-controls-panel" id="face-controls-panel">
+        <span class="label">Вращение грани:</span>
+        <button class="btn btn-face" id="face-rotate-left" title="Вращать грань влево">↺</button>
+        <button class="btn btn-face" id="face-rotate-right" title="Вращать грань вправо">↻</button>
+        <button class="btn btn-face" id="face-deselect" title="Снять выделение">✕</button>
+    </div>
+
+    <div class="hint-notification" id="hint-notification">
+        <button class="close-btn" id="close-hint">×</button>
+        <div class="hint-icon">🔄</div>
+        <h3>Как вращать модель</h3>
+        <p id="hint-text-desktop">Перетащите мышью по модели, чтобы вращать её</p>
+        <p id="hint-text-mobile" style="display: none;">Проведите пальцем по экрану, чтобы вращать модель</p>
+        <p style="font-size: 14px; opacity: 0.6; margin-top: 16px;">Используйте колесико мыши или жесты для масштабирования</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Инициализация сцены
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 0, 5);
+        camera.lookAt(0, 0, 0); // Явно указываем камере смотреть на центр сцены
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        
+        // Перехватываем ошибки WebGL
+        const gl = renderer.getContext();
+        const originalGetError = gl.getError;
+        let errorCount = 0;
+        gl.getError = function() {
+            const error = originalGetError.call(this);
+            if (error !== gl.NO_ERROR && errorCount < 10) { // Ограничиваем количество логов
+                errorCount++;
+                const errorNames = {
+                    [gl.NO_ERROR]: 'NO_ERROR',
+                    [gl.INVALID_ENUM]: 'INVALID_ENUM',
+                    [gl.INVALID_VALUE]: 'INVALID_VALUE',
+                    [gl.INVALID_OPERATION]: 'INVALID_OPERATION',
+                    [gl.INVALID_FRAMEBUFFER_OPERATION]: 'INVALID_FRAMEBUFFER_OPERATION',
+                    [gl.OUT_OF_MEMORY]: 'OUT_OF_MEMORY',
+                    [gl.CONTEXT_LOST_WEBGL]: 'CONTEXT_LOST_WEBGL'
+                };
+                const errorName = errorNames[error] || `UNKNOWN(${error})`;
+                console.error(`[WebGL Error ${errorCount}] ${errorName}`);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'WebGL ошибка обнаружена',data:{errorCode:error,errorName:errorName,errorCount:errorCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+            }
+            return error;
+        };
+        
+        // Перехватываем ошибки консоли
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const errorStr = args.map(a => String(a)).join(' ');
+            if (errorStr.includes('SecurityError') || errorStr.includes('Tainted') || errorStr.includes('texImage2D') || errorStr.includes('GL_INVALID')) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'Критическая ошибка консоли',data:{errorMessage:errorStr},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+            }
+        };
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        // Возвращаем исходный тёмный фон
+        renderer.setClearColor(0x0a0a0f, 1);
+        renderer.shadowMap.enabled = false;
+
+        // Глобальная ссылка на панель списка граней (инициализируется позже)
+        let faceListElement = null;
+        
+        const canvas = renderer.domElement;
+        canvas.style.display = 'block';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '1'; // Под UI элементами, но виден
+        
+        document.getElementById('canvas-container').appendChild(canvas);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:339',message:'Canvas добавлен в DOM',data:{canvasInDOM:document.getElementById('canvas-container').contains(canvas),canvasDisplay:window.getComputedStyle(canvas).display,canvasVisibility:window.getComputedStyle(canvas).visibility,canvasOpacity:window.getComputedStyle(canvas).opacity,canvasZIndex:window.getComputedStyle(canvas).zIndex,canvasWidth:canvas.width,canvasHeight:canvas.height,containerWidth:window.getComputedStyle(document.getElementById('canvas-container')).width,containerHeight:window.getComputedStyle(document.getElementById('canvas-container')).height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
+        console.log('Рендерер инициализирован, размер:', window.innerWidth, 'x', window.innerHeight);
+        console.log('Canvas элемент:', canvas);
+        console.log('Canvas размеры:', canvas.width, 'x', canvas.height);
+        
+        // Детальная проверка canvas
+        setTimeout(() => {
+            const canvasStyle = window.getComputedStyle(canvas);
+            const containerStyle = window.getComputedStyle(document.getElementById('canvas-container'));
+            console.log('=== ДИАГНОСТИКА CANVAS ===');
+            console.log('Canvas в DOM:', document.getElementById('canvas-container').contains(canvas));
+            console.log('Canvas display:', canvasStyle.display);
+            console.log('Canvas visibility:', canvasStyle.visibility);
+            console.log('Canvas opacity:', canvasStyle.opacity);
+            console.log('Canvas z-index:', canvasStyle.zIndex);
+            console.log('Canvas position:', canvasStyle.position);
+            console.log('Canvas top:', canvasStyle.top);
+            console.log('Canvas left:', canvasStyle.left);
+            console.log('Canvas width:', canvasStyle.width);
+            console.log('Canvas height:', canvasStyle.height);
+            console.log('Container width:', containerStyle.width);
+            console.log('Container height:', containerStyle.height);
+            console.log('Container position:', containerStyle.position);
+            console.log('Container z-index:', containerStyle.zIndex);
+            
+            // Проверка WebGL контекста
+            const gl = renderer.getContext();
+            console.log('WebGL контекст:', gl ? 'есть' : 'нет');
+            if (gl) {
+                console.log('WebGL версия:', gl.getParameter(gl.VERSION));
+                console.log('WebGL vendor:', gl.getParameter(gl.VENDOR));
+                console.log('WebGL renderer:', gl.getParameter(gl.RENDERER));
+            }
+        }, 100);
+
+        // Освещение для мягкой светотени
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        // Основной направленный свет сверху слева для мягкой светотени
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight1.position.set(5, 8, 5);
+        directionalLight1.castShadow = false;
+        scene.add(directionalLight1);
+
+        // Дополнительный мягкий свет снизу справа для заполнения теней
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+        directionalLight2.position.set(-3, -5, -3);
+        directionalLight2.castShadow = false;
+        scene.add(directionalLight2);
+        
+        console.log('Освещение добавлено в сцену');
+
+        // Создание додекаэдра
+        const geometry = new THREE.DodecahedronGeometry(1, 0);
+        console.log('Геометрия додекаэдра создана:', geometry);
+        const materials = [];
+        
+        // Функция создания белой текстуры с номером грани
+        function createNumberedTexture(faceNumber) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Белый фон
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Черный номер грани - уменьшенный размер для правильного отображения
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 180px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Рисуем номер в центре, зеркально по горизонтали,
+            // чтобы снаружи модели текст был НЕ зеркальный
+            ctx.save();
+            ctx.translate(512, 0);
+            ctx.scale(-1, 1);
+            ctx.fillText(faceNumber.toString(), 256, 256);
+            ctx.restore();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.flipY = false; // Важно для правильной ориентации
+            return texture;
+        }
+        
+        // Функция создания заглушки текстуры
+        function createPlaceholderTexture(filename) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(filename.replace('.jpg', ''), 256, 256);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+        
+        // Функция загрузки изображения с обработкой CORS
+        function loadImageAsTexture(filename) {
+            return new Promise((resolve, reject) => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:612',message:'Начало загрузки текстуры',data:{filename:filename,currentURL:window.location.href,protocol:window.location.protocol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                
+                const textureLoader = new THREE.TextureLoader();
+                
+                // Для file:// протокола пробуем сначала локальные пути
+                const isFileProtocolLocal = window.location.protocol === 'file:';
+                let texturePath = filename;
+                
+                if (isFileProtocolLocal) {
+                    // Для file:// формируем полный путь к файлу
+                    const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                    texturePath = `${currentDir}${filename}`;
+                    console.log(`[file://] Пробуем загрузить через TextureLoader: ${texturePath}`);
+                }
+                
+                // Пробуем загрузить через TextureLoader
+                textureLoader.load(
+                    texturePath,
+                    (texture) => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:619',message:'Текстура загружена через TextureLoader',data:{filename:filename,textureWidth:texture.image?.width,textureHeight:texture.image?.height,imageComplete:texture.image?.complete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                        // #endregion
+                        
+                        // Настраиваем текстуру для правильного отображения
+                        texture.wrapS = THREE.ClampToEdgeWrapping;
+                        texture.wrapT = THREE.ClampToEdgeWrapping;
+                        texture.flipY = false;
+                        texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                        texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                        texture.magFilter = THREE.LinearFilter;
+                        // Зеркальное отражение текстуры по горизонтали
+                        texture.offset.set(1, 0);
+                        texture.repeat.set(-1, 1);
+                        texture.center.set(0.5, 0.5);
+                        resolve(texture);
+                    },
+                    undefined,
+                    (error) => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:627',message:'TextureLoader не удалось, пробуем через Image',data:{filename:filename,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                        // #endregion
+                        
+                        // Если не удалось, пробуем через Image и Canvas
+                        const img = new Image();
+                        
+                        // Для file:// протокола не используем crossOrigin, чтобы избежать CORS ошибок
+                        const isFileProtocolLocal = window.location.protocol === 'file:';
+                        if (!isFileProtocolLocal) {
+                            img.crossOrigin = 'anonymous';
+                        }
+                        
+                        img.onload = function() {
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:660',message:'Изображение загружено через Image',data:{filename:filename,imageWidth:img.width,imageHeight:img.height,imageSrc:img.src,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                            // #endregion
+                            
+                            // Для file:// протокола используем Image напрямую через Texture
+                            // чтобы избежать проблем с "tainted canvas"
+                            if (isFileProtocolLocal) {
+                                // Создаем текстуру напрямую из изображения
+                                const texture = new THREE.Texture(img);
+                                texture.wrapS = THREE.ClampToEdgeWrapping;
+                                texture.wrapT = THREE.ClampToEdgeWrapping;
+                                texture.flipY = false;
+                                texture.needsUpdate = true;
+                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                                texture.magFilter = THREE.LinearFilter;
+                                // Зеркальное отражение текстуры по горизонтали
+                                texture.offset.set(1, 0);
+                                texture.repeat.set(-1, 1);
+                                texture.center.set(0.5, 0.5);
+                                resolve(texture);
+                            } else {
+                                // Для HTTP используем Canvas (может быть нужно для CORS)
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                const texture = new THREE.CanvasTexture(canvas);
+                                texture.wrapS = THREE.ClampToEdgeWrapping;
+                                texture.wrapT = THREE.ClampToEdgeWrapping;
+                                texture.flipY = false;
+                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                                texture.magFilter = THREE.LinearFilter;
+                                // Зеркальное отражение текстуры по горизонтали
+                                texture.offset.set(1, 0);
+                                texture.repeat.set(-1, 1);
+                                texture.center.set(0.5, 0.5);
+                                resolve(texture);
+                            }
+                        };
+                        
+                        img.onerror = function() {
+                            // #region agent log
+                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:646',message:'Не удалось загрузить изображение, создаем заглушку',data:{filename:filename,lastTriedPath:img.src,pathIndex:pathIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                            // #endregion
+                            
+                            // Создаем заглушку
+                            resolve(createPlaceholderTexture(filename));
+                        };
+                        
+                        // Пробуем разные пути, включая GitHub raw URLs и локальные файлы
+                        const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+                        const origin = window.location.origin;
+                        const pathParts = window.location.pathname.split('/').filter(p => p);
+                        
+                        // Формируем пути для загрузки
+                        const paths = [];
+                        
+                        if (isFileProtocolLocal) {
+                            // Для file:// протокола пробуем локальные пути
+                            const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                            paths.push(
+                                filename, // Относительный путь
+                                `./${filename}`, // Текущая директория
+                                `${currentDir}${filename}`, // Полный путь к файлу
+                                `${basePath}/${filename}`, // Относительно basePath
+                                `${origin}${basePath}/${filename}` // С протоколом file://
+                            );
+                            console.log(`[file://] Пробуем загрузить ${filename} из директории: ${currentDir}`);
+                        } else {
+                            // Для HTTP/HTTPS протоколов
+                            paths.push(
+                                filename, // Относительный путь
+                                `./${filename}`, // Текущая директория
+                                `${basePath}/${filename}`, // Относительно basePath
+                                `${origin}${basePath}/${filename}` // Полный путь для GitHub Pages
+                            );
+                        }
+                        
+                        // Если это GitHub Pages, добавляем путь к raw content
+                        if (origin.includes('github.io') && pathParts.length >= 2) {
+                            const user = pathParts[0];
+                            const repo = pathParts[1];
+                            // Пробуем разные ветки GitHub
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/gh-pages/${filename}`);
+                            // Также пробуем через GitHub Pages напрямую
+                            paths.push(`https://${user}.github.io/${repo}/${filename}`);
+                        }
+                        
+                        // Если это обычный GitHub репозиторий (не Pages), пробуем raw content
+                        if (origin.includes('github.com') && !origin.includes('github.io')) {
+                            const urlParts = window.location.href.split('/');
+                            const userIndex = urlParts.findIndex(p => p.includes('github.com')) + 1;
+                            if (userIndex > 0 && urlParts[userIndex + 1]) {
+                                const user = urlParts[userIndex];
+                                const repo = urlParts[userIndex + 1];
+                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
+                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
+                            }
+                        }
+                        
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:651',message:'Пробуем пути загрузки',data:{filename:filename,paths:paths,basePath:basePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                        // #endregion
+                        
+                        let pathIndex = 0;
+                        const tryNextPath = () => {
+                            if (pathIndex < paths.length) {
+                                const currentPath = paths[pathIndex++];
+                                console.log(`[${isFileProtocolLocal ? 'file://' : 'http'}] Пробуем загрузить ${filename} по пути: ${currentPath}`);
+                                // #region agent log
+                                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:718',message:'Пробуем путь загрузки',data:{filename:filename,pathIndex:pathIndex-1,totalPaths:paths.length,currentPath:currentPath,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                // #endregion
+                                img.src = currentPath;
+                            } else {
+                                console.error(`[${isFileProtocolLocal ? 'file://' : 'http'}] Все пути для ${filename} исчерпаны, создаем заглушку`);
+                                img.onerror();
+                            }
+                        };
+                        
+                        const originalError = img.onerror;
+                        img.onerror = function() {
+                            if (pathIndex < paths.length) {
+                                tryNextPath();
+                            } else {
+                                originalError.call(this);
+                            }
+                        };
+                        
+                        tryNextPath();
+                    }
+                );
+            });
+        }
+        
+        // Создаем додекаэдр с одним материалом для проверки
+        const testMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00, // Яркий зеленый для максимальной видимости
+            side: THREE.DoubleSide,
+            transparent: false,
+            opacity: 1.0
+        });
+        
+        const dodecahedron = new THREE.Mesh(geometry, testMaterial);
+        dodecahedron.position.set(0, 0, 0);
+        dodecahedron.scale.set(3, 3, 3);
+        dodecahedron.visible = false; // Скрываем до загрузки всех текстур
+        scene.add(dodecahedron);
+        
+        // Обновляем матрицу после установки scale
+        dodecahedron.updateMatrix();
+        dodecahedron.updateMatrixWorld();
+        
+        // Создаем материалы для каждой грани (для будущего использования с текстурами)
+        const basicMaterials = [];
+        for (let i = 0; i < 12; i++) {
+            basicMaterials.push(new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0
+            }));
+        }
+        
+        // Тестовые объекты удалены - додекаэдр работает
+        console.log('Додекаэдр scale после установки:', dodecahedron.scale);
+        console.log('Додекаэдр создан с зеленым материалом для теста');
+        console.log('Всего объектов в сцене:', scene.children.length);
+        
+        // #region agent log
+        const dodecahedronWorldMatrix = new THREE.Matrix4();
+        dodecahedron.updateMatrixWorld();
+        dodecahedronWorldMatrix.copy(dodecahedron.matrixWorld);
+        const cameraWorldMatrix = new THREE.Matrix4();
+        camera.updateMatrixWorld();
+        cameraWorldMatrix.copy(camera.matrixWorld);
+        const logVerticesCount = geometry.attributes?.position ? geometry.attributes.position.count / 3 : (geometry.vertices?.length || 0);
+        const logFacesCount = geometry.index ? geometry.index.count / 3 : (geometry.faces?.length || logVerticesCount / 3);
+        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:470',message:'Додекаэдр создан и добавлен',data:{inScene:scene.children.includes(dodecahedron),positionX:dodecahedron.position.x,positionY:dodecahedron.position.y,positionZ:dodecahedron.position.z,scaleX:dodecahedron.scale.x,scaleY:dodecahedron.scale.y,scaleZ:dodecahedron.scale.z,cameraX:camera.position.x,cameraY:camera.position.y,cameraZ:camera.position.z,cameraNear:camera.near,cameraFar:camera.far,cameraFov:camera.fov,geometryVertices:logVerticesCount,geometryFaces:logFacesCount,materialsCount:basicMaterials.length,materialType:basicMaterials[0]?.type,materialColor:basicMaterials[0]?.color?.getHex()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        
+        // Сохраняем ссылку на додекаэдр для управления
+        window.dodecahedron = dodecahedron;
+        window.dodecahedronMaterials = basicMaterials; // Сохраняем для будущего использования
+        window.dodecahedronGeometry = geometry;
+        
+        console.log('Додекаэдр создан и добавлен в сцену');
+        console.log('Додекаэдр в сцене:', scene.children.includes(dodecahedron));
+        console.log('Позиция додекаэдра:', dodecahedron.position);
+        console.log('Позиция камеры:', camera.position);
+        console.log('Количество детей в сцене:', scene.children.length);
+        console.log('Материалы додекаэдра:', dodecahedron.material);
+        
+        // Детальная диагностика
+        console.log('=== ДИАГНОСТИКА ВИДИМОСТИ ===');
+        console.log('Додекаэдр visible:', dodecahedron.visible);
+        console.log('Додекаэдр scale:', dodecahedron.scale);
+        const currentMaterial = Array.isArray(dodecahedron.material) ? dodecahedron.material[0] : dodecahedron.material;
+        console.log('Тип материала:', currentMaterial?.type);
+        console.log('Цвет материала:', currentMaterial?.color?.getHex());
+        console.log('Материал visible:', currentMaterial?.visible);
+        console.log('Материал transparent:', currentMaterial?.transparent);
+        console.log('Материал opacity:', currentMaterial?.opacity);
+        const verticesCount = geometry.attributes?.position ? geometry.attributes.position.count / 3 : (geometry.vertices?.length || 0);
+        const facesCount = geometry.index ? geometry.index.count / 3 : (geometry.faces?.length || verticesCount / 3);
+        console.log('Геометрия vertices:', verticesCount);
+        console.log('Геометрия faces:', facesCount);
+        console.log('Тип геометрии:', geometry.type);
+        
+        // Проверка видимости в frustum
+        const frustum = new THREE.Frustum();
+        camera.updateMatrixWorld();
+        const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(matrix);
+        console.log('Додекаэдр в frustum камеры:', frustum.intersectsObject(dodecahedron));
+        
+        // Bounding box
+        const bbox = new THREE.Box3().setFromObject(dodecahedron);
+        const bboxCenter = bbox.getCenter(new THREE.Vector3());
+        const bboxSize = bbox.getSize(new THREE.Vector3());
+        console.log('Bounding box min:', bbox.min.x, bbox.min.y, bbox.min.z);
+        console.log('Bounding box max:', bbox.max.x, bbox.max.y, bbox.max.z);
+        console.log('Bounding box center:', bboxCenter.x, bboxCenter.y, bboxCenter.z);
+        console.log('Bounding box size:', bboxSize.x, bboxSize.y, bboxSize.z);
+        console.log('Расстояние от камеры до центра:', camera.position.distanceTo(bboxCenter));
+        console.log('Камера смотрит на:', camera.getWorldDirection(new THREE.Vector3()));
+        
+        // Проверка видимости в экранных координатах
+        const vector = new THREE.Vector3();
+        dodecahedron.getWorldPosition(vector);
+        vector.project(camera);
+        console.log('Додекаэдр в экранных координатах:', 
+            (vector.x * 0.5 + 0.5) * window.innerWidth, 
+            (vector.y * -0.5 + 0.5) * window.innerHeight);
+        
+        // Проверяем протокол - для file:// нужен локальный сервер
+        const isFileProtocol = window.location.protocol === 'file:';
+        if (isFileProtocol) {
+            console.warn('⚠️ Файл открыт через file:// протокол. Для загрузки изображений используйте локальный HTTP сервер:');
+            console.warn('   Python: python -m http.server 8000');
+            console.warn('   Node.js: npx http-server');
+            console.warn('   Затем откройте http://localhost:8000');
+        }
+        
+        // Элементы прогресс-бара
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        // Функция обновления прогресса
+        function updateProgress(loaded, total) {
+            const percent = Math.round((loaded / total) * 100);
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+        }
+        
+        // Загрузка реальных изображений для всех 12 граней
+        const textures = [];
+        const texturePromises = [];
+        let loadedCount = 0;
+        const totalTextures = 12;
+        
+        for (let i = 1; i <= 12; i++) {
+            const filename = `${String(i).padStart(3, '0')}.png`;
+            texturePromises.push(
+                loadImageAsTexture(filename).then(texture => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:843',message:'Текстура получена, настраиваем',data:{filename:filename,textureType:texture.constructor.name,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height,isPlaceholder:texture.image?.width===512&&texture.image?.height===512},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
+                    
+                    // Проверяем, не является ли это заглушкой
+                    const isPlaceholder = texture.image && texture.image.width === 512 && texture.image.height === 512;
+                    if (isPlaceholder) {
+                        console.warn(`⚠ Текстура ${filename} не загрузилась, используется заглушка`);
+                    }
+                    
+                    // Настраиваем текстуру для правильного отображения пятиугольника
+                    // Изображение 2111x2001, пятиугольник с прозрачным фоном
+                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                    texture.flipY = false; // Важно для правильной ориентации
+                    texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                    texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                    texture.magFilter = THREE.LinearFilter;
+                    
+                    // Зеркальное отражение текстуры по горизонтали
+                    texture.offset.set(1, 0);
+                    texture.repeat.set(-1, 1);
+                    texture.center.set(0.5, 0.5);
+                    
+                    // Включаем прозрачность для PNG с альфа-каналом
+                    if (texture.image && texture.image.complete) {
+                        // Текстура уже загружена
+                    }
+                    
+                    textures[i - 1] = texture;
+                    loadedCount++;
+                    updateProgress(loadedCount, totalTextures);
+                    console.log(`✓ Текстура ${filename} загружена успешно (${loadedCount}/${totalTextures})${isPlaceholder ? ' [ЗАГЛУШКА]' : ''} - размер: ${texture.image?.width}x${texture.image?.height}`);
+                    return texture;
+                }).catch(err => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:865',message:'Ошибка загрузки текстуры',data:{filename:filename,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
+                    
+                    console.warn(`⚠ Не удалось загрузить ${filename}, используем заглушку:`, err);
+                    // Используем пронумерованную текстуру как заглушку
+                    const placeholder = createNumberedTexture(i);
+                    textures[i - 1] = placeholder;
+                    loadedCount++;
+                    updateProgress(loadedCount, totalTextures);
+                    return placeholder;
+                })
+            );
+        }
+        
+        // Ждем загрузки всех текстур
+        Promise.all(texturePromises).then(() => {
+            console.log('Все текстуры загружены:', textures.length);
+            
+            // Создаем материалы с текстурами для каждой грани
+            const newMaterials = [];
+            for (let i = 0; i < 12; i++) {
+                const texture = textures[i];
+                
+                // Убеждаемся, что настройки текстур применены (на случай если они были перезаписаны)
+                if (texture) {
+                    texture.generateMipmaps = false;
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                    texture.needsUpdate = true;
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:998',message:'Проверка настроек текстуры перед применением',data:{faceIndex:i+1,textureType:texture.type,generateMipmaps:texture.generateMipmaps,minFilter:texture.minFilter,magFilter:texture.magFilter,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                    // #endregion
+                }
+                
+                // Включаем прозрачность для PNG с альфа-каналом
+                newMaterials.push(new THREE.MeshStandardMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true, // Включаем прозрачность для PNG
+                    opacity: 1.0,
+                    metalness: 0.1,
+                    roughness: 0.7,
+                    alphaTest: 0.01 // Отсечение полностью прозрачных пикселей
+                }));
+            }
+            
+            // Применяем массив материалов
+            if (window.dodecahedron) {
+                window.dodecahedron.material = newMaterials;
+                window.dodecahedronMaterials = newMaterials;
+                console.log('Реальные текстуры применены к додекаэдру');
+                
+                // Показываем модель и скрываем прогресс-бар
+                window.dodecahedron.visible = true;
+                setTimeout(() => {
+                    loadingOverlay.classList.add('hidden');
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                    }, 500);
+                }, 300);
+            }
+        });
+        
+        // Временно создаем материалы с пронумерованными текстурами для отображения до загрузки
+        const newMaterials = [];
+        for (let i = 0; i < 12; i++) {
+            const tempTexture = createNumberedTexture(i + 1);
+            tempTexture.offset.set(0, 0);
+            tempTexture.repeat.set(1, 1);
+            tempTexture.center.set(0.5, 0.5);
+            
+            newMaterials.push(new THREE.MeshStandardMaterial({
+                map: tempTexture,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0,
+                metalness: 0.1,
+                roughness: 0.7
+            }));
+        }
+            
+            // Проверяем структуру геометрии
+            // DodecahedronGeometry: 12 граней, каждая грань - пентагон (5 вершин = 3 треугольника = 9 индексов)
+            const hasIndex = geometry.index !== null && geometry.index !== undefined;
+            const totalIndices = hasIndex ? geometry.index.count : 108; // 12 граней * 9 индексов = 108
+            const totalFaces = totalIndices / 3; // 36 треугольников
+            const facesPerGroup = 3; // 3 треугольника на грань (пентагон)
+            const indicesPerGroup = 9; // 3 треугольника * 3 индекса = 9
+            
+            console.log('=== ДИАГНОСТИКА ГЕОМЕТРИИ ===');
+            console.log('geometry.index существует:', hasIndex);
+            console.log('Всего индексов:', totalIndices);
+            console.log('Всего граней (треугольников):', totalFaces);
+            console.log('Граней на группу:', facesPerGroup);
+            console.log('Индексов на группу:', indicesPerGroup);
+            console.log('Существующие groups:', geometry.groups?.length || 0);
+            if (geometry.groups && geometry.groups.length > 0) {
+                console.log('Первые 3 groups:', geometry.groups.slice(0, 3));
+            }
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:633',message:'Проверка структуры геометрии',data:{hasIndex:hasIndex,totalIndices:totalIndices,totalFaces:totalFaces,facesPerGroup:facesPerGroup,indicesPerGroup:indicesPerGroup,existingGroupsCount:geometry.groups?.length||0,groups:geometry.groups?.map(g=>({start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            
+            // Если индексный массив отсутствует, создаем его
+            // В неиндексированной геометрии каждая вершина используется только один раз
+            // Поэтому индексный массив будет последовательным: [0, 1, 2, 3, ...]
+            if (!hasIndex) {
+                console.log('Создаем индексный массив для геометрии...');
+                const positions = geometry.attributes.position;
+                const vertexCount = positions.count;
+                const indexArray = new Uint16Array(vertexCount);
+                for (let i = 0; i < vertexCount; i++) {
+                    indexArray[i] = i;
+                }
+                geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
+                console.log('Индексный массив создан:', vertexCount, 'индексов');
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:667',message:'Индексный массив создан',data:{vertexCount:vertexCount,indexCreated:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+                // #endregion
+            }
+            
+            // Создаем или обновляем groups для каждой грани
+            // Всегда пересоздаем groups для гарантии правильного порядка
+            geometry.groups = [];
+            for (let i = 0; i < 12; i++) {
+                geometry.groups.push({
+                    start: i * indicesPerGroup,
+                    count: indicesPerGroup,
+                    materialIndex: i
+                });
+            }
+            console.log('Groups созданы/обновлены для додекаэдра:', geometry.groups.length, 'групп');
+            console.log('Первые 3 groups:', geometry.groups.slice(0, 3).map(g => ({start: g.start, count: g.count, materialIndex: g.materialIndex})));
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:690',message:'Groups созданы после создания индекса',data:{groupsCount:geometry.groups.length,hasIndexAfter:geometry.index!==null&&geometry.index!==undefined,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+            // #endregion
+            
+            // Пересчитываем UV-координаты для правильного центрирования текстур на каждой грани
+            const positions = geometry.attributes.position;
+            // В Three.js r128 index может быть null, но геометрия все равно работает
+            // Проверяем наличие index более тщательно
+            const indices = geometry.index;
+            // Проверяем разными способами
+            const hasIndexForUV = indices !== null && indices !== undefined && (indices.count !== undefined ? indices.count > 0 : false);
+            
+            // Дополнительная проверка: может быть index есть, но count равен 0 или undefined
+            console.log('Детальная проверка geometry.index:');
+            console.log('  geometry.index:', indices);
+            console.log('  typeof geometry.index:', typeof indices);
+            console.log('  geometry.index !== null:', indices !== null);
+            console.log('  geometry.index !== undefined:', indices !== undefined);
+            if (indices) {
+                console.log('  indices.count:', indices.count);
+                console.log('  indices.isBufferAttribute:', indices instanceof THREE.BufferAttribute);
+            }
+            
+            console.log('=== ПЕРЕСЧЕТ UV-КООРДИНАТ ===');
+            console.log('positions существует:', !!positions);
+            console.log('indices существует:', hasIndexForUV);
+            if (positions) console.log('positions.count:', positions.count);
+            if (hasIndexForUV) console.log('indices.count:', indices.count);
+            console.log('geometry.index:', geometry.index);
+            console.log('geometry.attributes.uv существует:', !!geometry.attributes.uv);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:672',message:'Проверка UV пересчета',data:{hasPositions:!!positions,hasIndices:hasIndexForUV,positionsCount:positions?.count,indicesCount:indices?.count,groupsCount:geometry.groups?.length,hasUV:!!geometry.attributes.uv},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+            // #endregion
+            
+            if (!positions) {
+                console.warn('Не удалось получить позиции для пересчета UV');
+            } else if (!hasIndexForUV) {
+                // Если индексов нет, но есть UV, пересчитываем их на основе positions и groups
+                // Используем упрощенный подход: для каждой группы находим вершины по близости
+                console.log('Индексы отсутствуют, пересчитываем UV на основе positions и groups');
+                
+                let uv = geometry.attributes.uv;
+                if (!uv) {
+                    uv = new THREE.BufferAttribute(new Float32Array(positions.count * 2), 2);
+                    geometry.setAttribute('uv', uv);
+                    console.log('UV-атрибут создан');
+                }
+                
+                // Для каждой группы находим вершины, которые могут принадлежать этой грани
+                // Используем упрощенный подход: группируем вершины по близости к центру группы
+                for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
+                    const group = geometry.groups[groupIndex];
+                    
+                    // Вычисляем примерный центр группы на основе start позиции
+                    // В DodecahedronGeometry каждая грань имеет примерно 5 вершин
+                    // Используем упрощенный подход: для каждой группы находим вершины по близости
+                    
+                    // Вычисляем центр группы на основе примерных позиций вершин
+                    // Каждая группа имеет start и count, но без индексов сложно определить вершины
+                    // Используем упрощенный подход: для каждой группы устанавливаем центрированные UV
+                    // для вершин, которые могут принадлежать этой грани
+                    
+                    // Простой подход: для каждой группы устанавливаем UV в центр (0.5, 0.5)
+                    // для всех вершин, которые могут быть связаны с этой группой
+                    // Но это не идеально, поэтому используем другой метод
+                    
+                    // Альтернативный подход: используем существующие UV, но масштабируем их для центрирования
+                    // Для каждой группы находим вершины по близости к центру группы
+                }
+                
+                // Используем существующие UV из геометрии, если они есть
+                // Если их нет, устанавливаем все UV в центрированные значения
+                if (geometry.attributes.uv && geometry.attributes.uv.count === positions.count) {
+                    console.log('Используем существующие UV-координаты из геометрии');
+                    // UV уже есть, не трогаем их
+                } else {
+                    // Упрощенный подход: устанавливаем все UV в центрированные значения
+                    for (let i = 0; i < positions.count; i++) {
+                        uv.setXY(i, 0.5, 0.5);
+                    }
+                    uv.needsUpdate = true;
+                    console.log('UV-координаты установлены в центр для всех вершин (упрощенный подход)');
+                }
+            } else {
+                
+                // Создаем или обновляем UV-атрибут
+                const uvCount = positions.count;
+                let uv = geometry.attributes.uv;
+                
+                if (!uv) {
+                    uv = new THREE.BufferAttribute(new Float32Array(uvCount * 2), 2);
+                    geometry.setAttribute('uv', uv);
+                    console.log('UV-атрибут создан');
+                }
+                
+                // Для каждой группы (грани) вычисляем правильные UV-координаты
+                for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
+                    const group = geometry.groups[groupIndex];
+                    
+                    // Собираем все уникальные индексы вершин для этой группы
+                    const vertexIndices = [];
+                    const vertexSet = new Set();
+                    
+                    for (let i = 0; i < group.count; i++) {
+                        const indexPos = group.start + i;
+                        if (indexPos < indices.count) {
+                            const vertexIndex = indices.getX(indexPos);
+                            if (!vertexSet.has(vertexIndex)) {
+                                vertexSet.add(vertexIndex);
+                                vertexIndices.push(vertexIndex);
+                            }
+                        }
+                    }
+                    
+                    if (vertexIndices.length < 3) continue;
+                    
+                    // Получаем вершины грани
+                    const vertices = vertexIndices.map(idx => new THREE.Vector3(
+                        positions.getX(idx),
+                        positions.getY(idx),
+                        positions.getZ(idx)
+                    ));
+                    
+                    // Вычисляем нормаль грани
+                    const v0 = vertices[0];
+                    const v1 = vertices[1];
+                    const v2 = vertices[2];
+                    const normal = new THREE.Vector3()
+                        .subVectors(v1, v0)
+                        .cross(new THREE.Vector3().subVectors(v2, v0))
+                        .normalize();
+                    
+                    // Создаем стабильный базис для проекции на плоскость грани
+                    // Используем более предсказуемый способ определения ориентации
+                    const worldRight = new THREE.Vector3(1, 0, 0);
+                    
+                    // Вычисляем right как проекцию worldRight на плоскость грани
+                    // Проекция: v - (v·n) * n
+                    const dot = worldRight.dot(normal);
+                    const right = new THREE.Vector3().subVectors(
+                        worldRight,
+                        normal.clone().multiplyScalar(dot)
+                    ).normalize();
+                    
+                    // Если right слишком мал (грань почти перпендикулярна worldRight), используем другой базис
+                    if (right.length() < 0.1) {
+                        const worldForward = new THREE.Vector3(0, 0, 1);
+                        const dot2 = worldForward.dot(normal);
+                        right.copy(worldForward).sub(
+                            normal.clone().multiplyScalar(dot2)
+                        ).normalize();
+                    }
+                    
+                    // Forward перпендикулярен normal и right
+                    const forward = new THREE.Vector3().crossVectors(normal, right).normalize();
+                    
+                    // Вычисляем центр грани
+                    const center = new THREE.Vector3();
+                    vertices.forEach(v => center.add(v));
+                    center.divideScalar(vertices.length);
+                    
+                    // Проецируем вершины на плоскость и вычисляем UV
+                    let minU = Infinity, maxU = -Infinity;
+                    let minV = Infinity, maxV = -Infinity;
+                    const projectedUVs = [];
+                    
+                    vertices.forEach((vertex, idx) => {
+                        const localPos = new THREE.Vector3().subVectors(vertex, center);
+                        const u = localPos.dot(right);
+                        const v = localPos.dot(forward);
+                        projectedUVs.push({ u, v, vertexIndex: vertexIndices[idx] });
+                        minU = Math.min(minU, u);
+                        maxU = Math.max(maxU, u);
+                        minV = Math.min(minV, v);
+                        maxV = Math.max(maxV, v);
+                    });
+                    
+                    // Нормализуем UV-координаты к диапазону [0, 1] с учетом соотношения сторон текстуры
+                    // Текстуры имеют размер 2111x2001, соотношение сторон ≈ 1.055
+                    const rangeU = maxU - minU || 1;
+                    const rangeV = maxV - minV || 1;
+                    
+                    // Вычисляем соотношение сторон грани
+                    const faceAspectRatio = rangeU / rangeV;
+                    // Соотношение сторон текстуры
+                    const textureAspectRatio = 2111 / 2001; // ≈ 1.055
+                    
+                    // Масштабируем UV так, чтобы текстура соответствовала грани 1:1
+                    // Используем полный размер (scale = 1.0) для точного соответствия
+                    const scale = 1.0;
+                    
+                    // Учитываем соотношение сторон для правильного наложения
+                    let scaleU = scale;
+                    let scaleV = scale;
+                    
+                    // Если грань шире, чем текстура, масштабируем по V
+                    if (faceAspectRatio > textureAspectRatio) {
+                        scaleV = scale * (textureAspectRatio / faceAspectRatio);
+                    } else {
+                        // Если грань выше, чем текстура, масштабируем по U
+                        scaleU = scale * (faceAspectRatio / textureAspectRatio);
+                    }
+                    
+                    projectedUVs.forEach(({ u, v, vertexIndex }) => {
+                        // Нормализуем и центрируем с учетом соотношения сторон
+                        const normalizedU = 0.5 + (u - (minU + maxU) / 2) / rangeU * scaleU;
+                        const normalizedV = 0.5 + (v - (minV + maxV) / 2) / rangeV * scaleV;
+                        uv.setXY(vertexIndex, normalizedU, normalizedV);
+                    });
+                }
+                
+                uv.needsUpdate = true;
+                console.log('UV-координаты пересчитаны для всех граней');
+                console.log('Количество обработанных групп:', geometry.groups.length);
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:790',message:'UV пересчет завершен',data:{groupsProcessed:geometry.groups.length,uvAttributeExists:!!geometry.attributes.uv,uvCount:geometry.attributes.uv?.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                // #endregion
+            }
+            
+            // Применяем массив материалов
+            window.dodecahedron.material = newMaterials;
+            window.dodecahedronMaterials = newMaterials;
+            
+            // Проверяем, что materials и groups правильно связаны
+            console.log('=== ПРОВЕРКА ПРИМЕНЕНИЯ МАТЕРИАЛОВ ===');
+            console.log('Количество материалов:', newMaterials.length);
+            console.log('Количество groups:', geometry.groups.length);
+            console.log('Groups с materialIndex:');
+            geometry.groups.forEach((group, i) => {
+                console.log(`  Group ${i}: start=${group.start}, count=${group.count}, materialIndex=${group.materialIndex}`);
+                if (group.materialIndex >= 0 && group.materialIndex < newMaterials.length) {
+                    const material = newMaterials[group.materialIndex];
+                    console.log(`    Материал ${group.materialIndex}: type=${material.type}, hasTexture=${!!material.map}`);
+                } else {
+                    console.warn(`    ОШИБКА: materialIndex ${group.materialIndex} вне диапазона [0, ${newMaterials.length - 1}]`);
+                }
+            });
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:810',message:'Проверка применения материалов',data:{materialsCount:newMaterials.length,groupsCount:geometry.groups.length,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex,hasMaterial:g.materialIndex>=0&&g.materialIndex<newMaterials.length}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+            // #endregion
+            
+            // #region agent log
+            const currentMaterialForLog = Array.isArray(window.dodecahedron.material) ? window.dodecahedron.material[0] : window.dodecahedron.material;
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:500',message:'Текстуры загружены',data:{texturesLoaded:textures.length,materialsReplaced:newMaterials.length,newMaterialType:currentMaterialForLog?.type,hasTexture:!!currentMaterialForLog?.map,isMaterialArray:Array.isArray(window.dodecahedron.material),materialCount:Array.isArray(window.dodecahedron.material)?window.dodecahedron.material.length:1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            
+        console.log('Белые пронумерованные текстуры применены');
+        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
+        console.log('Новый тип материала:', newMaterials[0]?.type);
+        console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
+        console.log('Размер текстуры:', newMaterials[0]?.map ? `${newMaterials[0].map.image?.width}x${newMaterials[0].map.image?.height}` : 'нет');
+        console.log('Додекаэдр visible:', window.dodecahedron.visible);
+        console.log('Додекаэдр material:', window.dodecahedron.material);
+        
+        // Система выбора и вращения грани - объявляем переменные ДО использования
+        let selectedFaceIndex = -1;
+        let faceControlsPanel = document.getElementById('face-controls-panel');
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let isDraggingForRotation = false;
+        let dragStartPosition = null;
+        
+        // Инициализация системы выбора грани и списка граней
+        try {
+            console.log('Инициализация выбора граней и списка');
+            faceListElement = document.getElementById('face-list');
+            if (!faceListElement) {
+                console.error('Элемент #face-list не найден в DOM');
+            }
+            initFaceSelection();
+            initFaceList();
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'initFaceSelection и initFaceList выполнены',data:{ok:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+            // #endregion
+        } catch (e) {
+            console.error('Ошибка инициализации выбора граней:', e);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'Ошибка initFaceSelection/initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+            // #endregion
+        }
+        
+        // Начальная ориентация на грань 1 — полностью совпадает с логикой кнопки сброса
+        setTimeout(() => {
+            if (window.dodecahedron) {
+                camera.position.set(0, 0, initialCameraZ);
+                deselectFace();
+                centerOnFace(0); // Грань 1 имеет индекс 0
+                selectFace(0);   // Выделяем грань 1
+                rotateFace(Math.PI); // Поворачиваем на 180°
+            }
+        }, 100); // Небольшая задержка для гарантии, что все инициализировано
+
+        // Система уведомлений
+        const hintNotification = document.getElementById('hint-notification');
+        const closeHintBtn = document.getElementById('close-hint');
+        const hintTextDesktop = document.getElementById('hint-text-desktop');
+        const hintTextMobile = document.getElementById('hint-text-mobile');
+        
+        let userInteracted = false;
+        let hintTimer = null;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Показываем правильный текст в зависимости от устройства
+        if (isMobile) {
+            hintTextDesktop.style.display = 'none';
+            hintTextMobile.style.display = 'block';
+        } else {
+            hintTextDesktop.style.display = 'block';
+            hintTextMobile.style.display = 'none';
+        }
+        
+        // Функция скрытия уведомления
+        function hideHint() {
+            hintNotification.classList.remove('show');
+            userInteracted = true;
+            if (hintTimer) {
+                clearTimeout(hintTimer);
+                hintTimer = null;
+            }
+        }
+        
+        // Функция показа уведомления
+        function showHint() {
+            if (!userInteracted) {
+                hintNotification.classList.add('show');
+            }
+        }
+        
+        // Запускаем таймер на 10 секунд
+        hintTimer = setTimeout(showHint, 10000);
+        
+        // Закрытие по кнопке
+        closeHintBtn.addEventListener('click', hideHint);
+        
+        // Закрытие при клике вне уведомления
+        hintNotification.addEventListener('click', (e) => {
+            if (e.target === hintNotification) {
+                hideHint();
+            }
+        });
+        
+        // Функция регистрации взаимодействия
+        function registerInteraction() {
+            if (!userInteracted) {
+                hideHint();
+            }
+        }
+        
+        // Управление мышью и тачем
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotationSpeed = 0.005;
+        let initialCameraZ = 5;
+        
+        // Вращение мышью
+        let mouseDownTime = 0;
+        let mouseDownPosition = null;
+        
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            mouseDownTime = Date.now();
+            mouseDownPosition = { x: e.clientX, y: e.clientY };
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if (mouseDownPosition) {
+                const moveDistance = Math.hypot(
+                    e.clientX - mouseDownPosition.x,
+                    e.clientY - mouseDownPosition.y
+                );
+                
+                // Если мышь переместилась более чем на 5 пикселей - начинаем перетаскивание
+                if (moveDistance > 5) {
+                    isDragging = true;
+                }
+            }
+            
+            if (isDragging && window.dodecahedron) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1112',message:'mousemove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousMousePosition.x,prevY:previousMousePosition.y,currX:e.clientX,currY:e.clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
+                
+                // Мгновенное вращение при перетаскивании (для отзывчивости)
+                window.dodecahedron.rotation.y += deltaX * rotationSpeed;
+                window.dodecahedron.rotation.x += deltaY * rotationSpeed;
+                
+                // Нормализация углов для предотвращения накопления
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation с текущим rotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', () => {
+            isDragging = false;
+            mouseDownPosition = null;
+        });
+
+        renderer.domElement.addEventListener('mouseleave', () => {
+            isDragging = false;
+            mouseDownPosition = null;
+        });
+
+        // Зум колесиком мыши
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.position.z += e.deltaY * 0.01;
+            camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+            registerInteraction();
+        });
+
+        // Управление тачем для мобильных устройств
+        let touchStart = null;
+        let previousTouchPosition = null;
+        let touchStartDistance = 0;
+        let touchStartZoom = initialCameraZ;
+        let lastTouchDistance = 0;
+        let isTouchDragging = false;
+
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                isTouchDragging = false;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1154',message:'touchstart 1 палец',data:{x:e.touches[0].clientX,y:e.touches[0].clientY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                registerInteraction();
+            } else if (e.touches.length === 2) {
+                touchStartDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                touchStartZoom = camera.position.z;
+                lastTouchDistance = touchStartDistance;
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 1 && touchStart && previousTouchPosition && window.dodecahedron) {
+                // Проверяем, было ли движение для начала перетаскивания
+                if (!isTouchDragging) {
+                    const moveDistance = Math.hypot(
+                        e.touches[0].clientX - touchStart.x,
+                        e.touches[0].clientY - touchStart.y
+                    );
+                    if (moveDistance > 5) {
+                        isTouchDragging = true;
+                    }
+                }
+                
+                if (isTouchDragging) {
+                    // Вращение одним пальцем - используем дельту от предыдущей позиции (как в мыши)
+                    const deltaX = e.touches[0].clientX - previousTouchPosition.x;
+                    const deltaY = e.touches[0].clientY - previousTouchPosition.y;
+                    
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1172',message:'touchmove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousTouchPosition.x,prevY:previousTouchPosition.y,currX:e.touches[0].clientX,currY:e.touches[0].clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                    // #endregion
+                    
+                    // Мгновенное вращение при перетаскивании на тач-устройствах
+                    window.dodecahedron.rotation.y += deltaX * rotationSpeed * 2;
+                    window.dodecahedron.rotation.x += deltaY * rotationSpeed * 2;
+                    
+                    // Нормализация углов для предотвращения накопления
+                    if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                        window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                    }
+                    if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                        window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                    }
+                    
+                    // Синхронизируем targetRotation и currentRotation с текущим rotation
+                    targetRotation.y = window.dodecahedron.rotation.y;
+                    targetRotation.x = window.dodecahedron.rotation.x;
+                    currentRotation.y = window.dodecahedron.rotation.y;
+                    currentRotation.x = window.dodecahedron.rotation.x;
+                    
+                    // Обновляем предыдущую позицию для следующего кадра
+                    previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    registerInteraction();
+                }
+            } else if (e.touches.length === 2) {
+                // Зум двумя пальцами
+                const touchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                
+                const zoomDelta = (touchDistance - lastTouchDistance) * 0.01;
+                camera.position.z = touchStartZoom - zoomDelta;
+                camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+                
+                lastTouchDistance = touchDistance;
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('touchend', () => {
+            touchStart = null;
+            previousTouchPosition = null;
+            touchStartDistance = 0;
+            lastTouchDistance = 0;
+            isTouchDragging = false;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1204',message:'touchend',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+        });
+
+        // Кнопки управления
+
+        // Управление зумом
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            camera.position.z = Math.max(2, camera.position.z - 0.5);
+            registerInteraction();
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            camera.position.z = Math.min(10, camera.position.z + 0.5);
+            registerInteraction();
+        });
+
+        // Сброс вида - возврат на грань 1 (повернута на 180°)
+        document.getElementById('reset').addEventListener('click', () => {
+            camera.position.set(0, 0, initialCameraZ);
+            if (window.dodecahedron) {
+                // Сбрасываем выделение
+                deselectFace();
+                // Центрируем на грани 1 (индекс 0)
+                centerOnFace(0);
+                // Выделяем грань 1
+                selectFace(0);
+                // Поворачиваем грань 1 на 180° вокруг оси камеры
+                rotateFace(Math.PI);
+            }
+            registerInteraction();
+        });
+
+        // Управление стрелками
+        document.addEventListener('keydown', (e) => {
+            if (window.dodecahedron) {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        window.dodecahedron.rotation.y += 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowRight':
+                        window.dodecahedron.rotation.y -= 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowUp':
+                        window.dodecahedron.rotation.x += 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowDown':
+                        window.dodecahedron.rotation.x -= 0.1;
+                        registerInteraction();
+                        break;
+                }
+            }
+        });
+
+
+        function updateFaceListSelection() {
+            if (!faceListElement) return;
+            const items = faceListElement.querySelectorAll('.face-list-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === selectedFaceIndex);
+            });
+        }
+
+        function initFaceSelection() {
+            // Обработка клика для выбора грани
+            renderer.domElement.addEventListener('click', (e) => {
+                // Проверяем, было ли перетаскивание
+                if (mouseDownPosition) {
+                    const moveDistance = Math.hypot(
+                        e.clientX - mouseDownPosition.x,
+                        e.clientY - mouseDownPosition.y
+                    );
+                    
+                    // Если было движение более 5 пикселей - это было перетаскивание, не клик
+                    if (moveDistance > 5 || isDragging) {
+                        return;
+                    }
+                }
+                
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                
+                if (window.dodecahedron) {
+                    const intersects = raycaster.intersectObject(window.dodecahedron);
+                    
+                    if (intersects.length > 0) {
+                        const faceIndex = intersects[0].face.materialIndex;
+                        selectFace(faceIndex);
+                        registerInteraction();
+                    }
+                }
+            });
+
+            // Обработка тача для выбора грани на мобильных
+            let touchStartTime = 0;
+            let touchStartPos = null;
+            
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    touchStartTime = Date.now();
+                    touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            renderer.domElement.addEventListener('touchend', (e) => {
+                if (e.changedTouches.length === 1 && touchStartPos) {
+                    const touchEnd = e.changedTouches[0];
+                    const touchDuration = Date.now() - touchStartTime;
+                    const touchDistance = Math.hypot(
+                        touchEnd.clientX - touchStartPos.x,
+                        touchEnd.clientY - touchStartPos.y
+                    );
+                    
+                    // Если это короткое касание без движения - выбираем грань
+                    if (touchDuration < 300 && touchDistance < 10) {
+                        mouse.x = (touchEnd.clientX / window.innerWidth) * 2 - 1;
+                        mouse.y = -(touchEnd.clientY / window.innerHeight) * 2 + 1;
+                        
+                        raycaster.setFromCamera(mouse, camera);
+                        
+                        if (window.dodecahedron) {
+                            const intersects = raycaster.intersectObject(window.dodecahedron);
+                            
+                            if (intersects.length > 0) {
+                                const faceIndex = intersects[0].face.materialIndex;
+                                selectFace(faceIndex);
+                                registerInteraction();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция центрирования додекаэдра по выбранной грани
+        function centerOnFace(faceIndex) {
+            if (!window.dodecahedron || faceIndex < 0) return;
+            
+            const geometry = window.dodecahedron.geometry;
+            if (!geometry.groups || geometry.groups.length === 0) return;
+            
+            const group = geometry.groups[faceIndex];
+            if (!group) return;
+            
+            const positions = geometry.attributes.position;
+            const indices = geometry.index;
+            if (!positions || !indices) return;
+            
+            // Собираем все вершины грани для вычисления центра
+            const faceVertices = [];
+            const vertexSet = new Set();
+            
+            for (let i = 0; i < group.count; i++) {
+                const indexPos = group.start + i;
+                if (indexPos < indices.count) {
+                    const vertexIndex = indices.getX(indexPos);
+                    if (!vertexSet.has(vertexIndex)) {
+                        vertexSet.add(vertexIndex);
+                        faceVertices.push(new THREE.Vector3(
+                            positions.getX(vertexIndex),
+                            positions.getY(vertexIndex),
+                            positions.getZ(vertexIndex)
+                        ));
+                    }
+                }
+            }
+            
+            if (faceVertices.length < 3) return;
+            
+            // Вычисляем центр грани
+            const faceCenter = new THREE.Vector3();
+            faceVertices.forEach(v => faceCenter.add(v));
+            faceCenter.divideScalar(faceVertices.length);
+            
+            // Вычисляем нормаль грани (используем первые 3 вершины)
+            const v0 = faceVertices[0];
+            const v1 = faceVertices[1];
+            const v2 = faceVertices[2];
+            const edge1 = new THREE.Vector3().subVectors(v1, v0);
+            const edge2 = new THREE.Vector3().subVectors(v2, v0);
+            let faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+            
+            // Направление к камере (вдоль оси Z, но от объекта к камере)
+            const cameraDirection = new THREE.Vector3(0, 0, -1); // Отрицательное Z, так как камера смотрит в -Z
+            
+            // Проверяем, нужно ли инвертировать нормаль
+            // Если нормаль направлена от центра додекаэдра, она должна быть направлена к камере
+            const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), faceCenter).normalize();
+            if (faceNormal.dot(toCenter) < 0) {
+                faceNormal.negate();
+            }
+            
+            // Вычисляем кватернион для поворота нормали грани к камере
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(faceNormal, cameraDirection);
+            
+            // Обновляем targetRotation для плавной анимации
+            // currentRotation остаётся текущим значением rotation додекаэдра
+            const euler = new THREE.Euler().setFromQuaternion(quaternion);
+            targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+            // Синхронизируем currentRotation с текущим rotation додекаэдра для плавного перехода
+            currentRotation = { 
+                x: window.dodecahedron.rotation.x, 
+                y: window.dodecahedron.rotation.y, 
+                z: window.dodecahedron.rotation.z 
+            };
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1481',message:'Центрирование по грани (плавная анимация)',data:{faceIndex:faceIndex,faceVerticesCount:faceVertices.length,faceCenter:{x:faceCenter.x,y:faceCenter.y,z:faceCenter.z},faceNormal:{x:faceNormal.x,y:faceNormal.y,z:faceNormal.z},currentRotation:currentRotation,targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
+            // #endregion
+        }
+        
+        function selectFace(faceIndex) {
+            const materials = Array.isArray(window.dodecahedron.material) 
+                ? window.dodecahedron.material 
+                : [window.dodecahedron.material];
+            
+            // Снимаем выделение с предыдущей грани
+            if (selectedFaceIndex >= 0 && materials[selectedFaceIndex]) {
+                if (materials[selectedFaceIndex].emissive) {
+                    materials[selectedFaceIndex].emissive.setHex(0x000000);
+                    materials[selectedFaceIndex].emissiveIntensity = 0;
+                }
+            }
+            
+            // Выделяем новую грань
+            selectedFaceIndex = faceIndex;
+            if (materials[faceIndex] && materials[faceIndex].emissive) {
+                materials[faceIndex].emissive.setHex(0x6496ff);
+                materials[faceIndex].emissiveIntensity = 0.3;
+            }
+            
+            // Обновляем визуальное выделение в списке граней
+            updateFaceListSelection();
+            
+            // Показываем панель управления гранью
+            faceControlsPanel.classList.add('active');
+        }
+
+        function deselectFace() {
+            const materials = Array.isArray(window.dodecahedron.material) 
+                ? window.dodecahedron.material 
+                : [window.dodecahedron.material];
+            
+            if (selectedFaceIndex >= 0 && materials[selectedFaceIndex] && materials[selectedFaceIndex].emissive) {
+                materials[selectedFaceIndex].emissive.setHex(0x000000);
+                materials[selectedFaceIndex].emissiveIntensity = 0;
+            }
+            selectedFaceIndex = -1;
+            faceControlsPanel.classList.remove('active');
+            updateFaceListSelection();
+        }
+
+        // Сохраняем текущую ориентацию для плавной анимации
+        let targetRotation = { x: 0, y: 0, z: 0 };
+        let currentRotation = { x: 0, y: 0, z: 0 };
+        const smoothRotationSpeed = 0.1; // Скорость плавного вращения
+        const faceRotationStep = (2 * Math.PI) / 10; // 36°: полный оборот за 10 шагов
+        
+        function rotateFace(angle) {
+            if (selectedFaceIndex < 0 || !window.dodecahedron) return;
+            
+            // После центрирования нормаль выбранной грани выровнена с направлением камеры (0,0,-1)
+            // Поэтому, чтобы крутить грань как «монетку» и не уводить её из центра,
+            // вращаем весь додекаэдр вокруг МИРОВОЙ оси, совпадающей с направлением камеры.
+            const worldAxis = new THREE.Vector3(0, 0, -1); // ось вдоль взгляда камеры
+            
+            const currentQuaternion = window.dodecahedron.quaternion.clone();
+            const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, angle);
+            
+            // Важно: сначала поворот вокруг оси камеры, потом уже существующая ориентация
+            const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+            
+            const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+            targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1368',message:'Вращение грани вокруг оси камеры',data:{selectedFaceIndex:selectedFaceIndex,angle:angle,axis:{x:worldAxis.x,y:worldAxis.y,z:worldAxis.z},targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+            // #endregion
+        }
+        
+        // Функция плавного вращения
+        function smoothRotate() {
+            if (!window.dodecahedron) return;
+
+            // Не вмешиваемся в ручное вращение мышью/тачем, чтобы не было «рывков»
+            if (isDragging || isDraggingForRotation || isTouchDragging) return;
+            
+            // Плавная интерполяция вращения через кватернионы для правильного вращения
+            const currentQuat = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(currentRotation.x, currentRotation.y, currentRotation.z)
+            );
+            const targetQuat = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(targetRotation.x, targetRotation.y, targetRotation.z)
+            );
+            
+            // Интерполируем кватернионы
+            currentQuat.slerp(targetQuat, smoothRotationSpeed);
+            
+            // Обновляем rotation из кватерниона
+            const euler = new THREE.Euler().setFromQuaternion(currentQuat);
+            currentRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+            // Проверяем, нужно ли еще обновлять
+            const distance = currentQuat.angleTo(targetQuat);
+            if (distance > 0.001) {
+                window.dodecahedron.rotation.set(currentRotation.x, currentRotation.y, currentRotation.z);
+            }
+        }
+
+        // Обработчики кнопок вращения грани
+        document.getElementById('face-rotate-left').addEventListener('click', () => {
+            // Вращение на 72° влево: полный оборот за 5 кликов
+            rotateFace(-faceRotationStep);
+            registerInteraction();
+        });
+
+        document.getElementById('face-rotate-right').addEventListener('click', () => {
+            // Вращение на 72° вправо: полный оборот за 5 кликов
+            rotateFace(faceRotationStep);
+            registerInteraction();
+        });
+
+        document.getElementById('face-deselect').addEventListener('click', () => {
+            deselectFace();
+            registerInteraction();
+        });
+
+        // Инициализация списка граней (номера 1–12)
+        function initFaceList() {
+            try {
+                if (!faceListElement) {
+                    console.warn('faceListElement не найден');
+                    return;
+                }
+                
+                faceListElement.innerHTML = '';
+                
+                for (let i = 0; i < 12; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'face-list-item';
+                    btn.textContent = String(i + 1);
+                    btn.dataset.faceIndex = i.toString();
+                    
+                    btn.addEventListener('click', () => {
+                        // При выборе из списка: выделяем грань и плавно центрируем камеру на ней
+                        selectFace(i);
+                        centerOnFace(i);
+                        registerInteraction();
+                    });
+                    
+                    faceListElement.appendChild(btn);
+                }
+                
+                // Первоначальное выделение грани 1
+                selectedFaceIndex = 0;
+                updateFaceListSelection();
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'initFaceList успешно выполнена',data:{items:12},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+                // #endregion
+            } catch (e) {
+                console.error('Ошибка initFaceList:', e);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'Ошибка initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
+                // #endregion
+            }
+        }
+
+        // Адаптивность
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Анимация
+        let renderCallCount = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Плавное вращение додекаэдра
+            smoothRotate();
+            
+            renderer.render(scene, camera);
+            renderCallCount++;
+            
+            // #region agent log
+            if (renderCallCount <= 3 || renderCallCount % 60 === 0) {
+                const gl = renderer.getContext();
+                const frustum = new THREE.Frustum();
+                const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+                frustum.setFromProjectionMatrix(matrix);
+                const dodecahedronInFrustum = window.dodecahedron ? frustum.intersectsObject(window.dodecahedron) : false;
+                const dodecahedronBoundingBox = window.dodecahedron ? new THREE.Box3().setFromObject(window.dodecahedron) : null;
+                
+                // Проверяем все объекты в сцене
+                const sceneObjects = [];
+                scene.children.forEach((child, index) => {
+                    if (child instanceof THREE.Mesh) {
+                        const bbox = new THREE.Box3().setFromObject(child);
+                        const inFrustum = frustum.intersectsObject(child);
+                        const material = Array.isArray(child.material) ? child.material[0] : child.material;
+                        sceneObjects.push({
+                            index: index,
+                            type: child.geometry?.type || 'unknown',
+                            visible: child.visible,
+                            inFrustum: inFrustum,
+                            position: {x: child.position.x, y: child.position.y, z: child.position.z},
+                            scale: {x: child.scale.x, y: child.scale.y, z: child.scale.z},
+                            materialType: material?.type,
+                            materialColor: material?.color?.getHex(),
+                            bboxSize: {x: bbox.getSize(new THREE.Vector3()).x, y: bbox.getSize(new THREE.Vector3()).y, z: bbox.getSize(new THREE.Vector3()).z}
+                        });
+                    }
+                });
+                
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1055',message:'Render вызван',data:{renderCallCount:renderCallCount,glContext:gl?true:false,glVersion:gl?.getParameter(gl.VERSION),glVendor:gl?.getParameter(gl.VENDOR),sceneChildren:scene.children.length,dodecahedronVisible:window.dodecahedron?.visible,dodecahedronInScene:scene.children.includes(window.dodecahedron),dodecahedronInFrustum:dodecahedronInFrustum,bboxMinX:dodecahedronBoundingBox?.min?.x,bboxMinY:dodecahedronBoundingBox?.min?.y,bboxMinZ:dodecahedronBoundingBox?.min?.z,bboxMaxX:dodecahedronBoundingBox?.max?.x,bboxMaxY:dodecahedronBoundingBox?.max?.y,bboxMaxZ:dodecahedronBoundingBox?.max?.z,sceneObjects:sceneObjects},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            }
+            // #endregion
+        }
+        
+        console.log('Запуск анимации...');
+        console.log('Сцена:', scene);
+        console.log('Камера:', camera);
+        console.log('Рендерер:', renderer);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:920',message:'Анимация запущена',data:{rendererType:renderer.constructor.name,rendererAutoClear:renderer.autoClear,rendererAutoClearColor:renderer.autoClearColor,rendererAutoClearDepth:renderer.autoClearDepth,canvasElement:renderer.domElement?true:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        
+        animate();
+    </script>
+</body>
+</html>
+
