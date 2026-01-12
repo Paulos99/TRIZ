@@ -959,6 +959,7 @@
                 console.log(`Текстура грани ${i + 1} настроена: rotation=${orientation.rotation.toFixed(3)}, flipX=${orientation.flipX}, flipY=${orientation.flipY}`);
                 
                 // Для прозрачного фона PNG включаем прозрачность
+                // Важно: alphaTest должен быть достаточно низким, чтобы не отсекать полупрозрачные пиксели
                 newMaterials.push(new THREE.MeshStandardMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
@@ -966,15 +967,32 @@
                     opacity: 1.0,
                     metalness: 0.1,
                     roughness: 0.7,
-                    alphaTest: 0.1 // Отсекаем полностью прозрачные пиксели
+                    alphaTest: 0.01 // Низкий порог для корректного отображения прозрачности
                 }));
+                
+                // Убеждаемся, что текстура загружена
+                if (texture.image) {
+                    console.log(`Текстура грани ${i + 1} загружена: ${texture.image.width}x${texture.image.height}`);
+                } else {
+                    console.warn(`Текстура грани ${i + 1} не имеет изображения!`);
+                }
             }
             
             // Применяем массив материалов
             if (window.dodecahedron) {
                 window.dodecahedron.material = newMaterials;
                 window.dodecahedronMaterials = newMaterials;
+                
+                // Обновляем все текстуры
+                newMaterials.forEach((material, index) => {
+                    if (material.map) {
+                        material.map.needsUpdate = true;
+                        console.log(`Материал ${index + 1}: текстура обновлена, размер: ${material.map.image?.width}x${material.map.image?.height}`);
+                    }
+                });
+                
                 console.log('Реальные текстуры применены к додекаэдру');
+                console.log('Количество материалов:', newMaterials.length);
                 
                 // Показываем модель и скрываем прогресс-бар
                 window.dodecahedron.visible = true;
@@ -1246,32 +1264,21 @@
                 console.log('Количество обработанных групп:', geometry.groups.length);
             }
             
-            // Применяем массив материалов
+            // Применяем временные материалы (до загрузки реальных текстур)
+            // Реальные текстуры будут применены в Promise.all после загрузки
             window.dodecahedron.material = newMaterials;
             window.dodecahedronMaterials = newMaterials;
             
-            // Проверяем, что materials и groups правильно связаны
-            console.log('=== ПРОВЕРКА ПРИМЕНЕНИЯ МАТЕРИАЛОВ ===');
+            // Показываем модель с временными текстурами
+            window.dodecahedron.visible = true;
+            
+            console.log('Временные пронумерованные текстуры применены');
+            console.log('=== ДИАГНОСТИКА ПРИМЕНЕНИЯ ВРЕМЕННЫХ МАТЕРИАЛОВ ===');
             console.log('Количество материалов:', newMaterials.length);
             console.log('Количество groups:', geometry.groups.length);
-            console.log('Groups с materialIndex:');
-            geometry.groups.forEach((group, i) => {
-                console.log(`  Group ${i}: start=${group.start}, count=${group.count}, materialIndex=${group.materialIndex}`);
-                if (group.materialIndex >= 0 && group.materialIndex < newMaterials.length) {
-                    const material = newMaterials[group.materialIndex];
-                    console.log(`    Материал ${group.materialIndex}: type=${material.type}, hasTexture=${!!material.map}`);
-                } else {
-                    console.warn(`    ОШИБКА: materialIndex ${group.materialIndex} вне диапазона [0, ${newMaterials.length - 1}]`);
-                }
-            });
-            
-        console.log('Белые пронумерованные текстуры применены');
-        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
-        console.log('Новый тип материала:', newMaterials[0]?.type);
-        console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
-        console.log('Размер текстуры:', newMaterials[0]?.map ? `${newMaterials[0].map.image?.width}x${newMaterials[0].map.image?.height}` : 'нет');
-        console.log('Додекаэдр visible:', window.dodecahedron.visible);
-        console.log('Додекаэдр material:', window.dodecahedron.material);
+            console.log('Новый тип материала:', newMaterials[0]?.type);
+            console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
+            console.log('Додекаэдр visible:', window.dodecahedron.visible);
         
         // Система выбора и вращения грани - объявляем переменные ДО использования
         let selectedFaceIndex = -1;
