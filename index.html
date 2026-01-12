@@ -1049,17 +1049,20 @@
                     texture.needsUpdate = true;
                     
                     // Применяем ориентацию грани к текстуре (как на фото примере)
+                    // Сначала сбрасываем все трансформации
                     texture.offset.set(0, 0);
                     texture.repeat.set(1, 1);
                     texture.center.set(0.5, 0.5);
                     texture.rotation = 0;
                     
+                    // Применяем поворот для правильной ориентации текстуры 2111x2001
+                    // Поворот применяется вокруг центра текстуры
+                    texture.rotation = orientation.rotation;
+                    
                     // Зеркальное отражение по горизонтали для всех текстур
+                    // Применяем ПОСЛЕ поворота, чтобы правильно ориентировать текстуру
                     texture.offset.x = 1;
                     texture.repeat.x = -1;
-                    
-                    // Применяем поворот для правильной ориентации текстуры 2111x2001
-                    texture.rotation = orientation.rotation;
                     
                     // #region agent log
                     fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:998',message:'Текстура применена с ориентацией',data:{faceIndex:i+1,textureType:texture.type,rotation:orientation.rotation,textureWidth:texture.image?.width,textureHeight:texture.image?.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -1363,51 +1366,46 @@
                     // Проецируем вершины на плоскость и вычисляем UV
                     let minU = Infinity, maxU = -Infinity;
                     let minV = Infinity, maxV = -Infinity;
-                    const projectedUVs = [];
+                    const vertexUVMap = new Map(); // Карта UV-координат для каждой вершины
                     
+                    // Вычисляем UV для всех уникальных вершин грани
                     vertices.forEach((vertex, idx) => {
                         const localPos = new THREE.Vector3().subVectors(vertex, center);
                         const u = localPos.dot(right);
                         const v = localPos.dot(forward);
-                        projectedUVs.push({ u, v, vertexIndex: vertexIndices[idx] });
+                        vertexUVMap.set(vertexIndices[idx], { u, v });
                         minU = Math.min(minU, u);
                         maxU = Math.max(maxU, u);
                         minV = Math.min(minV, v);
                         maxV = Math.max(maxV, v);
                     });
                     
-                    // НОВАЯ ЛОГИКА: Применяем текстуру 2111x2001 к грани с правильной ориентацией
-                    // Размер текстуры: 2111x2001
-                    const TEXTURE_WIDTH = 2111;
-                    const TEXTURE_HEIGHT = 2001;
-                    const TEXTURE_ASPECT_RATIO = TEXTURE_WIDTH / TEXTURE_HEIGHT; // ≈ 1.055
-                    
-                    // Нормализуем UV-координаты к диапазону [0, 1] с учетом соотношения сторон текстуры
+                    // Нормализуем UV-координаты к диапазону [0, 1], чтобы покрыть всю грань
                     const rangeU = maxU - minU || 1;
                     const rangeV = maxV - minV || 1;
                     
-                    // Вычисляем соотношение сторон грани
-                    const faceAspectRatio = rangeU / rangeV;
-                    
-                    // Масштабируем UV так, чтобы текстура 2111x2001 правильно покрывала грань
-                    let scaleU = 1.0;
-                    let scaleV = 1.0;
-                    
-                    // Учитываем соотношение сторон текстуры для правильного наложения
-                    if (faceAspectRatio > TEXTURE_ASPECT_RATIO) {
-                        // Грань шире, чем текстура - масштабируем по V
-                        scaleV = TEXTURE_ASPECT_RATIO / faceAspectRatio;
-                    } else {
-                        // Грань выше, чем текстура - масштабируем по U
-                        scaleU = faceAspectRatio / TEXTURE_ASPECT_RATIO;
+                    // Применяем UV-координаты ко ВСЕМ индексам в группе (не только к уникальным вершинам)
+                    for (let i = 0; i < group.count; i++) {
+                        const indexPos = group.start + i;
+                        if (indexPos < indices.count) {
+                            const vertexIndex = indices.getX(indexPos);
+                            const uvData = vertexUVMap.get(vertexIndex);
+                            
+                            if (uvData) {
+                                // Нормализуем к [0, 1] - это покрывает всю грань
+                                const normalizedU = (uvData.u - minU) / rangeU;
+                                const normalizedV = (uvData.v - minV) / rangeV;
+                                
+                                // Зажимаем в диапазон [0, 1] для безопасности
+                                const finalU = Math.max(0, Math.min(1, normalizedU));
+                                const finalV = Math.max(0, Math.min(1, normalizedV));
+                                
+                                uv.setXY(vertexIndex, finalU, finalV);
+                            }
+                        }
                     }
                     
-                    projectedUVs.forEach(({ u, v, vertexIndex }) => {
-                        // Нормализуем и центрируем с учетом соотношения сторон текстуры 2111x2001
-                        const normalizedU = 0.5 + (u - (minU + maxU) / 2) / rangeU * scaleU;
-                        const normalizedV = 0.5 + (v - (minV + maxV) / 2) / rangeV * scaleV;
-                        uv.setXY(vertexIndex, normalizedU, normalizedV);
-                    });
+                    console.log(`Грань ${groupIndex + 1}: UV диапазон U=[${minU.toFixed(3)}, ${maxU.toFixed(3)}], V=[${minV.toFixed(3)}, ${maxV.toFixed(3)}], rangeU=${rangeU.toFixed(3)}, rangeV=${rangeV.toFixed(3)}`);
                 }
                 
                 uv.needsUpdate = true;
