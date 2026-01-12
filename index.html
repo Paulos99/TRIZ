@@ -1055,14 +1055,17 @@
                     texture.center.set(0.5, 0.5);
                     texture.rotation = 0;
                     
-                    // Применяем поворот для правильной ориентации текстуры 2111x2001
-                    // Поворот применяется вокруг центра текстуры
-                    texture.rotation = orientation.rotation;
-                    
                     // Зеркальное отражение по горизонтали для всех текстур
-                    // Применяем ПОСЛЕ поворота, чтобы правильно ориентировать текстуру
+                    // Применяем ДО поворота, чтобы правильно ориентировать текстуру
                     texture.offset.x = 1;
                     texture.repeat.x = -1;
+                    
+                    // Применяем поворот для правильной ориентации текстуры 2111x2001
+                    // Поворот применяется вокруг центра текстуры ПОСЛЕ отражения
+                    texture.rotation = orientation.rotation;
+                    
+                    // Убеждаемся, что текстура обновится
+                    texture.needsUpdate = true;
                     
                     // #region agent log
                     fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:998',message:'Текстура применена с ориентацией',data:{faceIndex:i+1,textureType:texture.type,rotation:orientation.rotation,textureWidth:texture.image?.width,textureHeight:texture.image?.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -1070,14 +1073,13 @@
                 }
                 
                 // Включаем прозрачность для PNG с альфа-каналом
-                newMaterials.push(new THREE.MeshStandardMaterial({
+                // Используем MeshBasicMaterial для более надежного отображения текстур
+                newMaterials.push(new THREE.MeshBasicMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
                     transparent: true, // Включаем прозрачность для PNG
                     opacity: 1.0,
-                    metalness: 0.1,
-                    roughness: 0.7,
-                    alphaTest: 0.01 // Отсечение полностью прозрачных пикселей
+                    alphaTest: 0.0 // Низкий порог для корректного отображения прозрачности
                 }));
             }
             
