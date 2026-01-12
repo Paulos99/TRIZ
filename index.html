@@ -1271,25 +1271,27 @@
                 for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
                     const group = geometry.groups[groupIndex];
                     
-                    // Собираем все уникальные индексы вершин для этой группы
-                    const vertexIndices = [];
+                    // Собираем ВСЕ индексы вершин для этой группы (включая повторяющиеся)
+                    const allVertexIndices = [];
                     const vertexSet = new Set();
+                    const uniqueVertexIndices = [];
                     
                     for (let i = 0; i < group.count; i++) {
                         const indexPos = group.start + i;
                         if (indexPos < indices.count) {
                             const vertexIndex = indices.getX(indexPos);
+                            allVertexIndices.push(vertexIndex);
                             if (!vertexSet.has(vertexIndex)) {
                                 vertexSet.add(vertexIndex);
-                                vertexIndices.push(vertexIndex);
+                                uniqueVertexIndices.push(vertexIndex);
                             }
                         }
                     }
                     
-                    if (vertexIndices.length < 3) continue;
+                    if (uniqueVertexIndices.length < 3) continue;
                     
-                    // Получаем вершины грани
-                    const vertices = vertexIndices.map(idx => new THREE.Vector3(
+                    // Получаем уникальные вершины грани для вычисления плоскости и ориентации
+                    const vertices = uniqueVertexIndices.map(idx => new THREE.Vector3(
                         positions.getX(idx),
                         positions.getY(idx),
                         positions.getZ(idx)
@@ -1369,11 +1371,12 @@
                     const vertexUVMap = new Map(); // Карта UV-координат для каждой вершины
                     
                     // Вычисляем UV для всех уникальных вершин грани
-                    vertices.forEach((vertex, idx) => {
+                    uniqueVertexIndices.forEach((vertexIndex, idx) => {
+                        const vertex = vertices[idx];
                         const localPos = new THREE.Vector3().subVectors(vertex, center);
                         const u = localPos.dot(right);
                         const v = localPos.dot(forward);
-                        vertexUVMap.set(vertexIndices[idx], { u, v });
+                        vertexUVMap.set(vertexIndex, { u, v });
                         minU = Math.min(minU, u);
                         maxU = Math.max(maxU, u);
                         minV = Math.min(minV, v);
@@ -1393,19 +1396,45 @@
                             
                             if (uvData) {
                                 // Нормализуем к [0, 1] - это покрывает всю грань
-                                const normalizedU = (uvData.u - minU) / rangeU;
-                                const normalizedV = (uvData.v - minV) / rangeV;
+                                // Минимум должен стать 0, максимум должен стать 1
+                                const normalizedU = rangeU > 0 ? (uvData.u - minU) / rangeU : 0.5;
+                                const normalizedV = rangeV > 0 ? (uvData.v - minV) / rangeV : 0.5;
                                 
                                 // Зажимаем в диапазон [0, 1] для безопасности
                                 const finalU = Math.max(0, Math.min(1, normalizedU));
                                 const finalV = Math.max(0, Math.min(1, normalizedV));
                                 
                                 uv.setXY(vertexIndex, finalU, finalV);
+                            } else {
+                                // Если UV данные не найдены, устанавливаем центр
+                                uv.setXY(vertexIndex, 0.5, 0.5);
                             }
                         }
                     }
                     
-                    console.log(`Грань ${groupIndex + 1}: UV диапазон U=[${minU.toFixed(3)}, ${maxU.toFixed(3)}], V=[${minV.toFixed(3)}, ${maxV.toFixed(3)}], rangeU=${rangeU.toFixed(3)}, rangeV=${rangeV.toFixed(3)}`);
+                    // Проверяем, что все UV правильно нормализованы
+                    let uvMin = Infinity, uvMax = -Infinity;
+                    let vvMin = Infinity, vvMax = -Infinity;
+                    let processedCount = 0;
+                    
+                    for (let i = 0; i < group.count; i++) {
+                        const indexPos = group.start + i;
+                        if (indexPos < indices.count) {
+                            const vertexIndex = indices.getX(indexPos);
+                            const u = uv.getX(vertexIndex);
+                            const v = uv.getY(vertexIndex);
+                            if (u !== undefined && v !== undefined) {
+                                uvMin = Math.min(uvMin, u);
+                                uvMax = Math.max(uvMax, u);
+                                vvMin = Math.min(vvMin, v);
+                                vvMax = Math.max(vvMax, v);
+                                processedCount++;
+                            }
+                        }
+                    }
+                    
+                    console.log(`Грань ${groupIndex + 1}: исходный UV диапазон U=[${minU.toFixed(3)}, ${maxU.toFixed(3)}], V=[${minV.toFixed(3)}, ${maxV.toFixed(3)}], rangeU=${rangeU.toFixed(3)}, rangeV=${rangeV.toFixed(3)}`);
+                    console.log(`Грань ${groupIndex + 1}: финальный UV диапазон U=[${uvMin.toFixed(3)}, ${uvMax.toFixed(3)}], V=[${vvMin.toFixed(3)}, ${vvMax.toFixed(3)}], обработано вершин=${processedCount}`);
                 }
                 
                 uv.needsUpdate = true;
