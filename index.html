@@ -707,29 +707,16 @@
                             fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:660',message:'Изображение загружено через Image',data:{filename:filename,imageWidth:img.width,imageHeight:img.height,imageSrc:img.src,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
                             // #endregion
                             
-                            // Для file:// протокола используем Image напрямую через Texture
-                            // чтобы избежать проблем с "tainted canvas"
-                            if (isFileProtocolLocal) {
-                                // Создаем текстуру напрямую из изображения
-                                const texture = new THREE.Texture(img);
-                                texture.wrapS = THREE.ClampToEdgeWrapping;
-                                texture.wrapT = THREE.ClampToEdgeWrapping;
-                                texture.flipY = false;
-                                texture.needsUpdate = true;
-                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
-                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
-                                texture.magFilter = THREE.LinearFilter;
-                                // Зеркальное отражение текстуры по горизонтали
-                                texture.offset.set(1, 0);
-                                texture.repeat.set(-1, 1);
-                                texture.center.set(0.5, 0.5);
-                                resolve(texture);
-                            } else {
-                                // Для HTTP используем Canvas (может быть нужно для CORS)
-                                const canvas = document.createElement('canvas');
-                                canvas.width = img.width;
-                                canvas.height = img.height;
-                                const ctx = canvas.getContext('2d');
+                            // Для file:// протокола используем CanvasTexture БЕЗ crossOrigin
+                            // чтобы избежать проблем с CORS и "tainted canvas"
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            
+                            // Для file:// протокола не используем crossOrigin на canvas
+                            // Это позволяет избежать ошибки "cross-origin data"
+                            try {
                                 ctx.drawImage(img, 0, 0);
                                 
                                 const texture = new THREE.CanvasTexture(canvas);
@@ -740,6 +727,21 @@
                                 texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
                                 texture.magFilter = THREE.LinearFilter;
                                 // Зеркальное отражение текстуры по горизонтали
+                                texture.offset.set(1, 0);
+                                texture.repeat.set(-1, 1);
+                                texture.center.set(0.5, 0.5);
+                                resolve(texture);
+                            } catch (e) {
+                                // Если не удалось создать CanvasTexture, пробуем напрямую через Texture
+                                console.warn(`Не удалось создать CanvasTexture для ${filename}, пробуем Texture:`, e);
+                                const texture = new THREE.Texture(img);
+                                texture.wrapS = THREE.ClampToEdgeWrapping;
+                                texture.wrapT = THREE.ClampToEdgeWrapping;
+                                texture.flipY = false;
+                                texture.needsUpdate = true;
+                                texture.generateMipmaps = false;
+                                texture.minFilter = THREE.LinearFilter;
+                                texture.magFilter = THREE.LinearFilter;
                                 texture.offset.set(1, 0);
                                 texture.repeat.set(-1, 1);
                                 texture.center.set(0.5, 0.5);
@@ -1033,19 +1035,51 @@
             for (let i = 0; i < 12; i++) {
                 const texture = textures[i];
                 
-                // Убеждаемся, что настройки текстур применены (на случай если они были перезаписаны)
-                if (texture) {
-                    texture.generateMipmaps = false;
-                    texture.minFilter = THREE.LinearFilter;
-                    texture.magFilter = THREE.LinearFilter;
-                    texture.needsUpdate = true;
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:998',message:'Проверка настроек текстуры перед применением',data:{faceIndex:i+1,textureType:texture.type,generateMipmaps:texture.generateMipmaps,minFilter:texture.minFilter,magFilter:texture.magFilter,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
+                // Проверяем, что текстура существует и загружена
+                if (!texture) {
+                    console.error(`Текстура для грани ${i+1} отсутствует!`);
+                    // Используем пронумерованную текстуру как заглушку
+                    const placeholder = createNumberedTexture(i + 1);
+                    newMaterials.push(new THREE.MeshStandardMaterial({
+                        map: placeholder,
+                        side: THREE.DoubleSide,
+                        transparent: false,
+                        opacity: 1.0,
+                        metalness: 0.1,
+                        roughness: 0.7
+                    }));
+                    continue;
                 }
                 
+                // Убеждаемся, что настройки текстур применены (на случай если они были перезаписаны)
+                // Проверяем, что текстура действительно загружена
+                if (!texture.image || !texture.image.complete) {
+                    console.warn(`Текстура для грани ${i+1} не загружена полностью, используем заглушку`);
+                    const placeholder = createNumberedTexture(i + 1);
+                    newMaterials.push(new THREE.MeshStandardMaterial({
+                        map: placeholder,
+                        side: THREE.DoubleSide,
+                        transparent: false,
+                        opacity: 1.0,
+                        metalness: 0.1,
+                        roughness: 0.7
+                    }));
+                    continue;
+                }
+                
+                texture.generateMipmaps = false;
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.needsUpdate = true;
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1036',message:'Проверка текстуры перед применением',data:{faceIndex:i+1,textureType:texture.type,generateMipmaps:texture.generateMipmaps,minFilter:texture.minFilter,magFilter:texture.magFilter,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height,imageComplete:texture.image?.complete,imageSrc:texture.image?.src,isPlaceholder:texture.image?.width===512},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                
                 // Включаем прозрачность для PNG с альфа-каналом
-                newMaterials.push(new THREE.MeshStandardMaterial({
+                // ВАЖНО: Применяем зеркальное отражение ПОСЛЕ создания материала
+                // чтобы избежать проблем с SecurityError
+                const material = new THREE.MeshStandardMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
                     transparent: true, // Включаем прозрачность для PNG
@@ -1053,7 +1087,21 @@
                     metalness: 0.1,
                     roughness: 0.7,
                     alphaTest: 0.01 // Отсечение полностью прозрачных пикселей
-                }));
+                });
+                
+                // Применяем зеркальное отражение после создания материала
+                if (texture && texture.image && texture.image.complete) {
+                    // Зеркальное отражение уже применено при загрузке текстуры
+                    // Но убеждаемся, что оно не потерялось
+                    if (texture.offset.x !== 1 || texture.repeat.x !== -1) {
+                        texture.offset.set(1, 0);
+                        texture.repeat.set(-1, 1);
+                        texture.center.set(0.5, 0.5);
+                        texture.needsUpdate = true;
+                    }
+                }
+                
+                newMaterials.push(material);
             }
             
             // Применяем массив материалов
@@ -1074,14 +1122,15 @@
         });
         
         // Временно создаем материалы с пронумерованными текстурами для отображения до загрузки
-        const newMaterials = [];
+        // ВАЖНО: Этот блок выполняется ДО Promise.all, чтобы показать модель сразу
+        const tempMaterials = [];
         for (let i = 0; i < 12; i++) {
             const tempTexture = createNumberedTexture(i + 1);
             tempTexture.offset.set(0, 0);
             tempTexture.repeat.set(1, 1);
             tempTexture.center.set(0.5, 0.5);
             
-            newMaterials.push(new THREE.MeshStandardMaterial({
+            tempMaterials.push(new THREE.MeshStandardMaterial({
                 map: tempTexture,
                 side: THREE.DoubleSide,
                 transparent: false,
@@ -1089,6 +1138,12 @@
                 metalness: 0.1,
                 roughness: 0.7
             }));
+        }
+        
+        // Применяем временные материалы сразу, чтобы модель была видна
+        if (window.dodecahedron) {
+            window.dodecahedron.material = tempMaterials;
+            window.dodecahedron.visible = true;
         }
             
             // Проверяем структуру геометрии
@@ -1395,13 +1450,17 @@
             fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:500',message:'Текстуры загружены',data:{texturesLoaded:textures.length,materialsReplaced:newMaterials.length,newMaterialType:currentMaterialForLog?.type,hasTexture:!!currentMaterialForLog?.map,isMaterialArray:Array.isArray(window.dodecahedron.material),materialCount:Array.isArray(window.dodecahedron.material)?window.dodecahedron.material.length:1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
             // #endregion
             
-        console.log('Белые пронумерованные текстуры применены');
-        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
-        console.log('Новый тип материала:', newMaterials[0]?.type);
-        console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
-        console.log('Размер текстуры:', newMaterials[0]?.map ? `${newMaterials[0].map.image?.width}x${newMaterials[0].map.image?.height}` : 'нет');
-        console.log('Додекаэдр visible:', window.dodecahedron.visible);
-        console.log('Додекаэдр material:', window.dodecahedron.material);
+        // Диагностика после применения материалов
+        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ МАТЕРИАЛОВ ===');
+        if (window.dodecahedron && window.dodecahedron.material) {
+            const materials = Array.isArray(window.dodecahedron.material) ? window.dodecahedron.material : [window.dodecahedron.material];
+            console.log('Новый тип материала:', materials[0]?.type);
+            console.log('Материал имеет текстуру:', !!materials[0]?.map);
+            console.log('Размер текстуры:', materials[0]?.map ? `${materials[0].map.image?.width}x${materials[0].map.image?.height}` : 'нет');
+            console.log('Додекаэдр visible:', window.dodecahedron.visible);
+            console.log('Количество материалов:', materials.length);
+            console.log('Материалы с текстурами:', materials.map(m => !!m?.map).join(', '));
+        }
         
         // Система выбора и вращения грани - объявляем переменные ДО использования
         let selectedFaceIndex = -1;
