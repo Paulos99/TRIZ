@@ -874,8 +874,17 @@
             // ОРТОГОНАЛЬНАЯ проекция направления к верхней вершине на плоскость грани
             const componentAlongNormal = toTop.dot(normal);
             const toTopInPlane = new THREE.Vector3()
-                .subVectors(toTop, new THREE.Vector3().multiplyScalar(normal, componentAlongNormal))
-                .normalize();
+                .subVectors(toTop, normal.clone().multiplyScalar(componentAlongNormal));
+            
+            // ПРОВЕРКА: убеждаемся, что проекция не нулевая
+            const toTopInPlaneLength = toTopInPlane.length();
+            if (toTopInPlaneLength < 0.0001) {
+                // Если проекция слишком мала, используем направление "вверх" в плоскости
+                toTopInPlane.copy(up);
+                console.warn(`Ориентация грани ${faceIndex + 1}: проекция слишком мала, используем направление up`);
+            } else {
+                toTopInPlane.normalize();
+            }
             
             // ПРОВЕРКА: убеждаемся, что проекция действительно в плоскости
             const checkDot = toTopInPlane.dot(normal);
@@ -885,7 +894,15 @@
             
             // Вычисляем угол поворота: угол между проекцией "вверх" и направлением (0,1) в UV
             // В UV координатах Y растет вниз, поэтому нужно учесть это
-            const angle = Math.atan2(toTopInPlane.dot(up), toTopInPlane.dot(right));
+            const dotUp = toTopInPlane.dot(up);
+            const dotRight = toTopInPlane.dot(right);
+            const angle = Math.atan2(dotUp, dotRight);
+            
+            // ПРОВЕРКА: убеждаемся, что угол валиден
+            if (isNaN(angle) || !isFinite(angle)) {
+                console.warn(`Ориентация грани ${faceIndex + 1}: некорректный угол! dotUp=${dotUp}, dotRight=${dotRight}`);
+                return { rotation: 0, flipX: false, flipY: false };
+            }
             
             // Для додекаэдра обычно не нужны дополнительные отражения,
             // так как UV-координаты уже правильно вычислены геометрией
@@ -1300,8 +1317,8 @@
                         // ОРТОГОНАЛЬНАЯ проекция на плоскость: вычитаем компоненту вдоль нормали
                         const toVertex = new THREE.Vector3().subVectors(vertex, center);
                         const componentAlongNormal = toVertex.dot(normal);
-                        const projectedVertex = new THREE.Vector3().subVectors(toVertex, 
-                            new THREE.Vector3().multiplyScalar(normal, componentAlongNormal));
+                        const projectedVertex = new THREE.Vector3()
+                            .subVectors(toVertex, normal.clone().multiplyScalar(componentAlongNormal));
                         
                         // Вычисляем UV-координаты в локальной системе координат плоскости
                         const u = projectedVertex.dot(right);
@@ -1313,29 +1330,44 @@
                             console.warn(`Грань ${groupIndex + 1}, вершина ${idx}: проекция не в плоскости! dot=${checkDot.toFixed(6)}`);
                         }
                         
-                        vertexUVMap.set(vertexIndex, { u, v });
-                        minU = Math.min(minU, u);
-                        maxU = Math.max(maxU, u);
-                        minV = Math.min(minV, v);
-                        maxV = Math.max(maxV, v);
+                        // ПРОВЕРКА: убеждаемся, что UV-координаты валидны
+                        if (isNaN(u) || isNaN(v) || !isFinite(u) || !isFinite(v)) {
+                            console.warn(`Грань ${groupIndex + 1}, вершина ${idx}: некорректные UV до нормализации! u=${u}, v=${v}`);
+                            // Используем значения по умолчанию
+                            vertexUVMap.set(vertexIndex, { u: 0, v: 0 });
+                        } else {
+                            vertexUVMap.set(vertexIndex, { u, v });
+                            minU = Math.min(minU, u);
+                            maxU = Math.max(maxU, u);
+                            minV = Math.min(minV, v);
+                            maxV = Math.max(maxV, v);
+                        }
                     });
                     
-                    // Нормализуем UV-координаты к диапазону [0, 1], покрывая всю грань
-                    const rangeU = maxU - minU || 1;
-                    const rangeV = maxV - minV || 1;
-                    const scale = 0.9; // Масштаб для покрытия всей грани
-                    
-                    // ПРОВЕРКА: убеждаемся, что диапазоны валидны
-                    if (rangeU <= 0 || rangeV <= 0 || !isFinite(rangeU) || !isFinite(rangeV)) {
-                        console.warn(`Грань ${groupIndex + 1}: некорректные диапазоны UV! rangeU=${rangeU}, rangeV=${rangeV}`);
+                    // ПРОВЕРКА: убеждаемся, что min/max валидны
+                    if (!isFinite(minU) || !isFinite(maxU) || !isFinite(minV) || !isFinite(maxV) ||
+                        minU === Infinity || maxU === -Infinity || minV === Infinity || maxV === -Infinity) {
+                        console.warn(`Грань ${groupIndex + 1}: некорректные min/max UV! minU=${minU}, maxU=${maxU}, minV=${minV}, maxV=${maxV}`);
                         // Используем значения по умолчанию
-                        const defaultRange = 1;
                         allVertexIndices.forEach(vertexIndex => {
                             uv.setXY(vertexIndex, 0.5, 0.5);
                         });
                     } else {
-                        // Применяем UV-координаты ко всем индексам в группе
-                        allVertexIndices.forEach(vertexIndex => {
+                        // Нормализуем UV-координаты к диапазону [0, 1], покрывая всю грань
+                        const rangeU = maxU - minU || 1;
+                        const rangeV = maxV - minV || 1;
+                        const scale = 0.9; // Масштаб для покрытия всей грани
+                        
+                        // ПРОВЕРКА: убеждаемся, что диапазоны валидны
+                        if (rangeU <= 0 || rangeV <= 0 || !isFinite(rangeU) || !isFinite(rangeV)) {
+                            console.warn(`Грань ${groupIndex + 1}: некорректные диапазоны UV! rangeU=${rangeU}, rangeV=${rangeV}`);
+                            // Используем значения по умолчанию
+                            allVertexIndices.forEach(vertexIndex => {
+                                uv.setXY(vertexIndex, 0.5, 0.5);
+                            });
+                        } else {
+                            // Применяем UV-координаты ко всем индексам в группе
+                            allVertexIndices.forEach(vertexIndex => {
                             const uvData = vertexUVMap.get(vertexIndex);
                             if (uvData) {
                                 // Нормализуем к [0, 1] с центрированием
@@ -1362,7 +1394,8 @@
                                 // Если данных нет, используем центр
                                 uv.setXY(vertexIndex, 0.5, 0.5);
                             }
-                        });
+                            });
+                        }
                     }
                 }
                 
