@@ -495,10 +495,6 @@
         
         document.getElementById('canvas-container').appendChild(canvas);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:339',message:'Canvas добавлен в DOM',data:{canvasInDOM:document.getElementById('canvas-container').contains(canvas),canvasDisplay:window.getComputedStyle(canvas).display,canvasVisibility:window.getComputedStyle(canvas).visibility,canvasOpacity:window.getComputedStyle(canvas).opacity,canvasZIndex:window.getComputedStyle(canvas).zIndex,canvasWidth:canvas.width,canvasHeight:canvas.height,containerWidth:window.getComputedStyle(document.getElementById('canvas-container')).width,containerHeight:window.getComputedStyle(document.getElementById('canvas-container')).height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-        
         console.log('Рендерер инициализирован, размер:', window.innerWidth, 'x', window.innerHeight);
         console.log('Canvas элемент:', canvas);
         console.log('Canvas размеры:', canvas.width, 'x', canvas.height);
@@ -712,18 +708,6 @@
         console.log('Додекаэдр scale после установки:', dodecahedron.scale);
         console.log('Додекаэдр создан с зеленым материалом для теста');
         console.log('Всего объектов в сцене:', scene.children.length);
-        
-        // #region agent log
-        const dodecahedronWorldMatrix = new THREE.Matrix4();
-        dodecahedron.updateMatrixWorld();
-        dodecahedronWorldMatrix.copy(dodecahedron.matrixWorld);
-        const cameraWorldMatrix = new THREE.Matrix4();
-        camera.updateMatrixWorld();
-        cameraWorldMatrix.copy(camera.matrixWorld);
-        const logVerticesCount = geometry.attributes?.position ? geometry.attributes.position.count / 3 : (geometry.vertices?.length || 0);
-        const logFacesCount = geometry.index ? geometry.index.count / 3 : (geometry.faces?.length || logVerticesCount / 3);
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:470',message:'Додекаэдр создан и добавлен',data:{inScene:scene.children.includes(dodecahedron),positionX:dodecahedron.position.x,positionY:dodecahedron.position.y,positionZ:dodecahedron.position.z,scaleX:dodecahedron.scale.x,scaleY:dodecahedron.scale.y,scaleZ:dodecahedron.scale.z,cameraX:camera.position.x,cameraY:camera.position.y,cameraZ:camera.position.z,cameraNear:camera.near,cameraFar:camera.far,cameraFov:camera.fov,geometryVertices:logVerticesCount,geometryFaces:logFacesCount,materialsCount:basicMaterials.length,materialType:basicMaterials[0]?.type,materialColor:basicMaterials[0]?.color?.getHex()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         
         // Сохраняем ссылку на додекаэдр для управления
         window.dodecahedron = dodecahedron;
@@ -1061,10 +1045,6 @@
                 console.log('Первые 3 groups:', geometry.groups.slice(0, 3));
             }
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:633',message:'Проверка структуры геометрии',data:{hasIndex:hasIndex,totalIndices:totalIndices,totalFaces:totalFaces,facesPerGroup:facesPerGroup,indicesPerGroup:indicesPerGroup,existingGroupsCount:geometry.groups?.length||0,groups:geometry.groups?.map(g=>({start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-            
             // Если индексный массив отсутствует, создаем его
             // В неиндексированной геометрии каждая вершина используется только один раз
             // Поэтому индексный массив будет последовательным: [0, 1, 2, 3, ...]
@@ -1078,10 +1058,6 @@
                 }
                 geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
                 console.log('Индексный массив создан:', vertexCount, 'индексов');
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:667',message:'Индексный массив создан',data:{vertexCount:vertexCount,indexCreated:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-                // #endregion
             }
             
             // Создаем или обновляем groups для каждой грани
@@ -1096,10 +1072,6 @@
             }
             console.log('Groups созданы/обновлены для додекаэдра:', geometry.groups.length, 'групп');
             console.log('Первые 3 groups:', geometry.groups.slice(0, 3).map(g => ({start: g.start, count: g.count, materialIndex: g.materialIndex})));
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:690',message:'Groups созданы после создания индекса',data:{groupsCount:geometry.groups.length,hasIndexAfter:geometry.index!==null&&geometry.index!==undefined,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-            // #endregion
             
             // Пересчитываем UV-координаты для правильного центрирования текстур на каждой грани
             const positions = geometry.attributes.position;
@@ -1127,10 +1099,6 @@
             if (hasIndexForUV) console.log('indices.count:', indices.count);
             console.log('geometry.index:', geometry.index);
             console.log('geometry.attributes.uv существует:', !!geometry.attributes.uv);
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:672',message:'Проверка UV пересчета',data:{hasPositions:!!positions,hasIndices:hasIndexForUV,positionsCount:positions?.count,indicesCount:indices?.count,groupsCount:geometry.groups?.length,hasUV:!!geometry.attributes.uv},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-            // #endregion
             
             if (!positions) {
                 console.warn('Не удалось получить позиции для пересчета UV');
@@ -1276,10 +1244,6 @@
                 uv.needsUpdate = true;
                 console.log('UV-координаты пересчитаны для всех граней');
                 console.log('Количество обработанных групп:', geometry.groups.length);
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:790',message:'UV пересчет завершен',data:{groupsProcessed:geometry.groups.length,uvAttributeExists:!!geometry.attributes.uv,uvCount:geometry.attributes.uv?.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                // #endregion
             }
             
             // Применяем массив материалов
@@ -1300,15 +1264,6 @@
                     console.warn(`    ОШИБКА: materialIndex ${group.materialIndex} вне диапазона [0, ${newMaterials.length - 1}]`);
                 }
             });
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:810',message:'Проверка применения материалов',data:{materialsCount:newMaterials.length,groupsCount:geometry.groups.length,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex,hasMaterial:g.materialIndex>=0&&g.materialIndex<newMaterials.length}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-            // #endregion
-            
-            // #region agent log
-            const currentMaterialForLog = Array.isArray(window.dodecahedron.material) ? window.dodecahedron.material[0] : window.dodecahedron.material;
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:500',message:'Текстуры загружены',data:{texturesLoaded:textures.length,materialsReplaced:newMaterials.length,newMaterialType:currentMaterialForLog?.type,hasTexture:!!currentMaterialForLog?.map,isMaterialArray:Array.isArray(window.dodecahedron.material),materialCount:Array.isArray(window.dodecahedron.material)?window.dodecahedron.material.length:1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             
         console.log('Белые пронумерованные текстуры применены');
         console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
@@ -1335,15 +1290,8 @@
             }
             initFaceSelection();
             initFaceList();
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'initFaceSelection и initFaceList выполнены',data:{ok:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         } catch (e) {
             console.error('Ошибка инициализации выбора граней:', e);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'Ошибка initFaceSelection/initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         }
         
         // Начальная ориентация на грань 1 — полностью совпадает с логикой кнопки сброса
@@ -1447,10 +1395,6 @@
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1112',message:'mousemove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousMousePosition.x,prevY:previousMousePosition.y,currX:e.clientX,currY:e.clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-                
                 // Мгновенное вращение при перетаскивании (для отзывчивости)
                 window.dodecahedron.rotation.y += deltaX * rotationSpeed;
                 window.dodecahedron.rotation.x += deltaY * rotationSpeed;
@@ -1505,9 +1449,6 @@
                 touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 isTouchDragging = false;
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1154',message:'touchstart 1 палец',data:{x:e.touches[0].clientX,y:e.touches[0].clientY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
                 registerInteraction();
             } else if (e.touches.length === 2) {
                 touchStartDistance = Math.hypot(
@@ -1539,10 +1480,6 @@
                     // Вращение одним пальцем - используем дельту от предыдущей позиции (как в мыши)
                     const deltaX = e.touches[0].clientX - previousTouchPosition.x;
                     const deltaY = e.touches[0].clientY - previousTouchPosition.y;
-                    
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1172',message:'touchmove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousTouchPosition.x,prevY:previousTouchPosition.y,currX:e.touches[0].clientX,currY:e.touches[0].clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
                     
                     // Мгновенное вращение при перетаскивании на тач-устройствах
                     window.dodecahedron.rotation.y += deltaX * rotationSpeed * 2;
@@ -1588,9 +1525,6 @@
             touchStartDistance = 0;
             lastTouchDistance = 0;
             isTouchDragging = false;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1204',message:'touchend',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
         });
 
         // Кнопки управления
@@ -1801,9 +1735,6 @@
                 z: window.dodecahedron.rotation.z 
             };
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1481',message:'Центрирование по грани (плавная анимация)',data:{faceIndex:faceIndex,faceVerticesCount:faceVertices.length,faceCenter:{x:faceCenter.x,y:faceCenter.y,z:faceCenter.z},faceNormal:{x:faceNormal.x,y:faceNormal.y,z:faceNormal.z},currentRotation:currentRotation,targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         }
         
         function selectFace(faceIndex) {
@@ -1870,9 +1801,6 @@
             const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
             targetRotation = { x: euler.x, y: euler.y, z: euler.z };
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1368',message:'Вращение грани вокруг оси камеры',data:{selectedFaceIndex:selectedFaceIndex,angle:angle,axis:{x:worldAxis.x,y:worldAxis.y,z:worldAxis.z},targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-            // #endregion
         }
         
         // Функция плавного вращения
@@ -1951,15 +1879,8 @@
                 // Первоначальное выделение грани 1
                 selectedFaceIndex = 0;
                 updateFaceListSelection();
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'initFaceList успешно выполнена',data:{items:12},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
             } catch (e) {
                 console.error('Ошибка initFaceList:', e);
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'Ошибка initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
             }
         }
 
@@ -1980,50 +1901,12 @@
             
             renderer.render(scene, camera);
             renderCallCount++;
-            
-            // #region agent log
-            if (renderCallCount <= 3 || renderCallCount % 60 === 0) {
-                const gl = renderer.getContext();
-                const frustum = new THREE.Frustum();
-                const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-                frustum.setFromProjectionMatrix(matrix);
-                const dodecahedronInFrustum = window.dodecahedron ? frustum.intersectsObject(window.dodecahedron) : false;
-                const dodecahedronBoundingBox = window.dodecahedron ? new THREE.Box3().setFromObject(window.dodecahedron) : null;
-                
-                // Проверяем все объекты в сцене
-                const sceneObjects = [];
-                scene.children.forEach((child, index) => {
-                    if (child instanceof THREE.Mesh) {
-                        const bbox = new THREE.Box3().setFromObject(child);
-                        const inFrustum = frustum.intersectsObject(child);
-                        const material = Array.isArray(child.material) ? child.material[0] : child.material;
-                        sceneObjects.push({
-                            index: index,
-                            type: child.geometry?.type || 'unknown',
-                            visible: child.visible,
-                            inFrustum: inFrustum,
-                            position: {x: child.position.x, y: child.position.y, z: child.position.z},
-                            scale: {x: child.scale.x, y: child.scale.y, z: child.scale.z},
-                            materialType: material?.type,
-                            materialColor: material?.color?.getHex(),
-                            bboxSize: {x: bbox.getSize(new THREE.Vector3()).x, y: bbox.getSize(new THREE.Vector3()).y, z: bbox.getSize(new THREE.Vector3()).z}
-                        });
-                    }
-                });
-                
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1055',message:'Render вызван',data:{renderCallCount:renderCallCount,glContext:gl?true:false,glVersion:gl?.getParameter(gl.VERSION),glVendor:gl?.getParameter(gl.VENDOR),sceneChildren:scene.children.length,dodecahedronVisible:window.dodecahedron?.visible,dodecahedronInScene:scene.children.includes(window.dodecahedron),dodecahedronInFrustum:dodecahedronInFrustum,bboxMinX:dodecahedronBoundingBox?.min?.x,bboxMinY:dodecahedronBoundingBox?.min?.y,bboxMinZ:dodecahedronBoundingBox?.min?.z,bboxMaxX:dodecahedronBoundingBox?.max?.x,bboxMaxY:dodecahedronBoundingBox?.max?.y,bboxMaxZ:dodecahedronBoundingBox?.max?.z,sceneObjects:sceneObjects},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            }
-            // #endregion
         }
         
         console.log('Запуск анимации...');
         console.log('Сцена:', scene);
         console.log('Камера:', camera);
         console.log('Рендерер:', renderer);
-        
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:920',message:'Анимация запущена',data:{rendererType:renderer.constructor.name,rendererAutoClear:renderer.autoClear,rendererAutoClearColor:renderer.autoClearColor,rendererAutoClearDepth:renderer.autoClearDepth,canvasElement:renderer.domElement?true:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         
         animate();
     </script>
