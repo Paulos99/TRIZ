@@ -860,11 +860,28 @@
             }
             const up = new THREE.Vector3().crossVectors(normal, right).normalize();
             
-            // Проецируем направление к верхней вершине на плоскость грани
+            // ПРОВЕРКА: убеждаемся, что базис ортогонален
+            const rightDotUp = right.dot(up);
+            const rightDotNormal = right.dot(normal);
+            const upDotNormal = up.dot(normal);
+            if (Math.abs(rightDotUp) > 0.001 || Math.abs(rightDotNormal) > 0.001 || Math.abs(upDotNormal) > 0.001) {
+                // Пересчитываем базис для ортогональности
+                right.normalize();
+                up = new THREE.Vector3().crossVectors(normal, right).normalize();
+                right = new THREE.Vector3().crossVectors(up, normal).normalize();
+            }
+            
+            // ОРТОГОНАЛЬНАЯ проекция направления к верхней вершине на плоскость грани
+            const componentAlongNormal = toTop.dot(normal);
             const toTopInPlane = new THREE.Vector3()
-                .addScaledVector(right, toTop.dot(right))
-                .addScaledVector(up, toTop.dot(up))
+                .subVectors(toTop, new THREE.Vector3().multiplyScalar(normal, componentAlongNormal))
                 .normalize();
+            
+            // ПРОВЕРКА: убеждаемся, что проекция действительно в плоскости
+            const checkDot = toTopInPlane.dot(normal);
+            if (Math.abs(checkDot) > 0.0001) {
+                console.warn(`Ориентация грани ${faceIndex + 1}: проекция не в плоскости! dot=${checkDot.toFixed(6)}`);
+            }
             
             // Вычисляем угол поворота: угол между проекцией "вверх" и направлением (0,1) в UV
             // В UV координатах Y растет вниз, поэтому нужно учесть это
@@ -932,6 +949,12 @@
                 const texture = textures[i];
                 const orientation = faceOrientations[i];
                 
+                // ПРОВЕРКА: убеждаемся, что ориентация валидна
+                if (isNaN(orientation.rotation) || !isFinite(orientation.rotation)) {
+                    console.warn(`Грань ${i + 1}: некорректная ориентация rotation=${orientation.rotation}, используем 0`);
+                    orientation.rotation = 0;
+                }
+                
                 // Применяем ориентацию к текстуре
                 // Сначала сбрасываем все трансформации
                 texture.offset.set(0, 0);
@@ -948,7 +971,14 @@
                 // Поворот применяется ПОСЛЕ отражения, чтобы правильно ориентировать текстуру
                 texture.rotation = orientation.rotation;
                 
-                console.log(`Текстура грани ${i + 1} настроена: rotation=${orientation.rotation.toFixed(3)}, flipX=${orientation.flipX}, flipY=${orientation.flipY}`);
+                // ПРОВЕРКА: убеждаемся, что текстура правильно настроена
+                const finalRotation = texture.rotation;
+                if (isNaN(finalRotation) || !isFinite(finalRotation)) {
+                    console.error(`Грань ${i + 1}: некорректный rotation текстуры, сбрасываем на 0`);
+                    texture.rotation = 0;
+                }
+                
+                console.log(`Текстура грани ${i + 1} настроена: rotation=${finalRotation.toFixed(3)}, flipX=${orientation.flipX}, flipY=${orientation.flipY}`);
                 
                 // Для прозрачного фона PNG включаем прозрачность
                 // Используем MeshBasicMaterial для гарантированного отображения без зависимости от освещения
@@ -1227,16 +1257,62 @@
                     vertices.forEach(v => center.add(v));
                     center.divideScalar(vertices.length);
                     
-                    // Проецируем вершины на плоскость и вычисляем UV
+                    // ПРОВЕРКА: убеждаемся, что все вершины лежат в одной плоскости
+                    // Вычисляем расстояние от каждой вершины до плоскости грани
+                    const planeDistance = normal.dot(center);
+                    let maxDistanceFromPlane = 0;
+                    
+                    vertices.forEach(vertex => {
+                        const distanceToPlane = Math.abs(normal.dot(vertex) - planeDistance);
+                        maxDistanceFromPlane = Math.max(maxDistanceFromPlane, distanceToPlane);
+                    });
+                    
+                    // Если вершины слишком далеко от плоскости, выводим предупреждение
+                    if (maxDistanceFromPlane > 0.001) {
+                        console.warn(`Грань ${groupIndex + 1}: максимальное расстояние от плоскости: ${maxDistanceFromPlane.toFixed(6)}`);
+                    }
+                    
+                    // ПРОВЕРКА: убеждаемся, что базисные векторы ортогональны и нормализованы
+                    const rightDotUp = right.dot(up);
+                    const rightDotNormal = right.dot(normal);
+                    const upDotNormal = up.dot(normal);
+                    const rightLength = right.length();
+                    const upLength = up.length();
+                    
+                    if (Math.abs(rightDotUp) > 0.001 || Math.abs(rightDotNormal) > 0.001 || 
+                        Math.abs(upDotNormal) > 0.001 || Math.abs(rightLength - 1) > 0.001 || 
+                        Math.abs(upLength - 1) > 0.001) {
+                        console.warn(`Грань ${groupIndex + 1}: базис не ортогонален! right·up=${rightDotUp.toFixed(6)}, right·normal=${rightDotNormal.toFixed(6)}, up·normal=${upDotNormal.toFixed(6)}`);
+                        // Пересчитываем базис для ортогональности
+                        right.normalize();
+                        up = new THREE.Vector3().crossVectors(normal, right).normalize();
+                        right = new THREE.Vector3().crossVectors(up, normal).normalize();
+                    }
+                    
+                    // Проецируем вершины на плоскость ОРТОГОНАЛЬНО и вычисляем UV
                     let minU = Infinity, maxU = -Infinity;
                     let minV = Infinity, maxV = -Infinity;
                     const vertexUVMap = new Map();
                     
                     uniqueVertexIndices.forEach((vertexIndex, idx) => {
                         const vertex = vertices[idx];
-                        const localPos = new THREE.Vector3().subVectors(vertex, center);
-                        const u = localPos.dot(right);
-                        const v = localPos.dot(up);
+                        
+                        // ОРТОГОНАЛЬНАЯ проекция на плоскость: вычитаем компоненту вдоль нормали
+                        const toVertex = new THREE.Vector3().subVectors(vertex, center);
+                        const componentAlongNormal = toVertex.dot(normal);
+                        const projectedVertex = new THREE.Vector3().subVectors(toVertex, 
+                            new THREE.Vector3().multiplyScalar(normal, componentAlongNormal));
+                        
+                        // Вычисляем UV-координаты в локальной системе координат плоскости
+                        const u = projectedVertex.dot(right);
+                        const v = projectedVertex.dot(up);
+                        
+                        // ПРОВЕРКА: убеждаемся, что проекция действительно в плоскости
+                        const checkDot = projectedVertex.dot(normal);
+                        if (Math.abs(checkDot) > 0.0001) {
+                            console.warn(`Грань ${groupIndex + 1}, вершина ${idx}: проекция не в плоскости! dot=${checkDot.toFixed(6)}`);
+                        }
+                        
                         vertexUVMap.set(vertexIndex, { u, v });
                         minU = Math.min(minU, u);
                         maxU = Math.max(maxU, u);
@@ -1249,16 +1325,45 @@
                     const rangeV = maxV - minV || 1;
                     const scale = 0.9; // Масштаб для покрытия всей грани
                     
-                    // Применяем UV-координаты ко всем индексам в группе
-                    allVertexIndices.forEach(vertexIndex => {
-                        const uvData = vertexUVMap.get(vertexIndex);
-                        if (uvData) {
-                            // Нормализуем к [0, 1] с центрированием
-                            const normalizedU = 0.5 + (uvData.u - (minU + maxU) / 2) / rangeU * scale;
-                            const normalizedV = 0.5 + (uvData.v - (minV + maxV) / 2) / rangeV * scale;
-                            uv.setXY(vertexIndex, normalizedU, normalizedV);
-                        }
-                    });
+                    // ПРОВЕРКА: убеждаемся, что диапазоны валидны
+                    if (rangeU <= 0 || rangeV <= 0 || !isFinite(rangeU) || !isFinite(rangeV)) {
+                        console.warn(`Грань ${groupIndex + 1}: некорректные диапазоны UV! rangeU=${rangeU}, rangeV=${rangeV}`);
+                        // Используем значения по умолчанию
+                        const defaultRange = 1;
+                        allVertexIndices.forEach(vertexIndex => {
+                            uv.setXY(vertexIndex, 0.5, 0.5);
+                        });
+                    } else {
+                        // Применяем UV-координаты ко всем индексам в группе
+                        allVertexIndices.forEach(vertexIndex => {
+                            const uvData = vertexUVMap.get(vertexIndex);
+                            if (uvData) {
+                                // Нормализуем к [0, 1] с центрированием
+                                const normalizedU = 0.5 + (uvData.u - (minU + maxU) / 2) / rangeU * scale;
+                                const normalizedV = 0.5 + (uvData.v - (minV + maxV) / 2) / rangeV * scale;
+                                
+                                // ПРОВЕРКА: убеждаемся, что нормализованные координаты валидны
+                                if (isNaN(normalizedU) || isNaN(normalizedV) || 
+                                    !isFinite(normalizedU) || !isFinite(normalizedV)) {
+                                    console.warn(`Грань ${groupIndex + 1}, вершина ${vertexIndex}: некорректные UV! u=${normalizedU}, v=${normalizedV}`);
+                                    uv.setXY(vertexIndex, 0.5, 0.5);
+                                } else {
+                                    // ПРОВЕРКА: убеждаемся, что координаты в допустимом диапазоне
+                                    const clampedU = Math.max(0, Math.min(1, normalizedU));
+                                    const clampedV = Math.max(0, Math.min(1, normalizedV));
+                                    uv.setXY(vertexIndex, clampedU, clampedV);
+                                    
+                                    // Если координаты были зажаты, выводим предупреждение
+                                    if (clampedU !== normalizedU || clampedV !== normalizedV) {
+                                        console.warn(`Грань ${groupIndex + 1}, вершина ${vertexIndex}: UV зажаты! было (${normalizedU.toFixed(3)}, ${normalizedV.toFixed(3)}), стало (${clampedU.toFixed(3)}, ${clampedV.toFixed(3)})`);
+                                    }
+                                }
+                            } else {
+                                // Если данных нет, используем центр
+                                uv.setXY(vertexIndex, 0.5, 0.5);
+                            }
+                        });
+                    }
                 }
                 
                 uv.needsUpdate = true;
