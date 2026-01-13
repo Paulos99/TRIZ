@@ -452,6 +452,33 @@
         <button class="btn btn-face" id="face-deselect" title="Снять выделение">✕</button>
     </div>
 
+    <div class="texture-controls-panel" id="texture-controls-panel" style="position: fixed; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(30, 30, 40, 0.95); padding: 15px; border-radius: 8px; display: none; z-index: 1000; color: white; font-size: 12px; border: 1px solid rgba(100, 150, 255, 0.3);">
+        <div style="margin-bottom: 10px; font-weight: bold;">Управление текстурой грани <span id="texture-face-number">1</span>:</div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Поворот:</span>
+            <button class="btn btn-face" id="texture-rotate-left" title="Повернуть текстуру влево">↺</button>
+            <button class="btn btn-face" id="texture-rotate-right" title="Повернуть текстуру вправо">↻</button>
+            <span id="texture-rotation-value" style="min-width: 60px; text-align: center;">0°</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Смещение X:</span>
+            <button class="btn btn-face" id="texture-offset-x-left" title="Сместить влево">←</button>
+            <button class="btn btn-face" id="texture-offset-x-right" title="Сместить вправо">→</button>
+            <span id="texture-offset-x-value" style="min-width: 60px; text-align: center;">0.00</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Смещение Y:</span>
+            <button class="btn btn-face" id="texture-offset-y-down" title="Сместить вниз">↓</button>
+            <button class="btn btn-face" id="texture-offset-y-up" title="Сместить вверх">↑</button>
+            <span id="texture-offset-y-value" style="min-width: 60px; text-align: center;">0.00</span>
+        </div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <button class="btn btn-face" id="texture-reset" style="width: 100%;">Сбросить</button>
+            <button class="btn btn-face" id="texture-copy-values" style="width: 100%; margin-top: 5px; background: #4CAF50;">Скопировать значения</button>
+        </div>
+        <div id="texture-values-output" style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 10px; word-break: break-all; max-height: 100px; overflow-y: auto;"></div>
+    </div>
+
     <div class="hint-notification" id="hint-notification">
         <button class="close-btn" id="close-hint">×</button>
         <div class="hint-icon">🔄</div>
@@ -965,7 +992,9 @@
         }
         
         // Объявляем массив ориентаций граней (будет заполнен при формировании граней)
-        const faceOrientations = [];
+        // Делаем глобальным для доступа из функций управления текстурами
+        window.faceOrientations = [];
+        const faceOrientations = window.faceOrientations;
         for (let i = 0; i < 12; i++) {
             faceOrientations.push({ rotation: 0, flipX: false, flipY: false });
         }
@@ -1048,7 +1077,7 @@
                     texture.magFilter = THREE.LinearFilter;
                     texture.needsUpdate = true;
                     
-                    // Применяем текстуру с зеркальным отражением и поворотом
+                    // Применяем текстуру с зеркальным отражением
                     // Сбрасываем все трансформации
                     texture.offset.set(0, 0);
                     texture.repeat.set(1, 1);
@@ -1059,11 +1088,17 @@
                     texture.offset.x = 1;
                     texture.repeat.x = -1;
                     
-                    // Поворот против часовой стрелки на 30 градусов
-                    // 30 градусов = Math.PI / 6 радиан
-                    // Против часовой стрелки = отрицательное направление
-                    const rotation30deg = -Math.PI / 6; // -30 градусов
-                    texture.rotation = (orientation.rotation || 0) + rotation30deg;
+                    // Применяем ручные настройки текстуры (для тестирования)
+                    // Эти значения можно изменять через панель управления
+                    const textureSettings = window.textureSettings || {};
+                    const faceSettings = textureSettings[i] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                    
+                    // Применяем поворот (базовый + ручной)
+                    texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
+                    
+                    // Применяем смещение
+                    texture.offset.x = 1 + faceSettings.offsetX;
+                    texture.offset.y = faceSettings.offsetY;
                     
                     // Убеждаемся, что текстура обновится
                     texture.needsUpdate = true;
@@ -1482,6 +1517,9 @@
             }
             initFaceSelection();
             initFaceList();
+            
+            // Инициализация управления текстурами
+            initTextureControls();
             
             // #region agent log
             fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'initFaceSelection и initFaceList выполнены',data:{ok:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
@@ -1953,6 +1991,151 @@
             // #endregion
         }
         
+        // Инициализация управления текстурами
+        function initTextureControls() {
+            if (!window.textureSettings) {
+                window.textureSettings = {};
+            }
+            
+            const texturePanel = document.getElementById('texture-controls-panel');
+            if (!texturePanel) return;
+            
+            // Функция обновления текстур для выбранной грани
+            function updateTextureForFace(faceIndex) {
+                if (!window.dodecahedron || !window.dodecahedronMaterials) return;
+                
+                const materials = Array.isArray(window.dodecahedron.material) 
+                    ? window.dodecahedron.material 
+                    : [window.dodecahedron.material];
+                
+                if (faceIndex < 0 || faceIndex >= materials.length) return;
+                
+                const material = materials[faceIndex];
+                const texture = material?.map;
+                if (!texture) return;
+                
+                const orientation = window.faceOrientations && window.faceOrientations[faceIndex] 
+                    ? window.faceOrientations[faceIndex] 
+                    : { rotation: 0, flipX: false, flipY: false };
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                
+                // Применяем настройки
+                texture.offset.set(0, 0);
+                texture.repeat.set(1, 1);
+                texture.center.set(0.5, 0.5);
+                texture.rotation = 0;
+                
+                // Зеркальное отражение
+                texture.offset.x = 1;
+                texture.repeat.x = -1;
+                
+                // Применяем поворот и смещение
+                texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
+                texture.offset.x = 1 + faceSettings.offsetX;
+                texture.offset.y = faceSettings.offsetY;
+                
+                texture.needsUpdate = true;
+                updateTexturePanel(faceIndex);
+            }
+            
+            // Функция обновления панели управления
+            function updateTexturePanel(faceIndex) {
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                
+                document.getElementById('texture-face-number').textContent = faceIndex + 1;
+                document.getElementById('texture-rotation-value').textContent = 
+                    (faceSettings.rotation * 180 / Math.PI).toFixed(1) + '°';
+                document.getElementById('texture-offset-x-value').textContent = faceSettings.offsetX.toFixed(3);
+                document.getElementById('texture-offset-y-value').textContent = faceSettings.offsetY.toFixed(3);
+                
+                // Выводим значения для копирования
+                const output = document.getElementById('texture-values-output');
+                if (output) {
+                    output.textContent = `Грань ${faceIndex + 1}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}`;
+                }
+            }
+            
+            // Обработчики кнопок
+            const stepRotation = Math.PI / 180; // 1 градус
+            const stepOffset = 0.01; // Шаг смещения
+            
+            document.getElementById('texture-rotate-left').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].rotation -= stepRotation;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-rotate-right').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].rotation += stepRotation;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-offset-x-left').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].offsetX -= stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-offset-x-right').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].offsetX += stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-offset-y-down').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].offsetY -= stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-offset-y-up').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                if (!window.textureSettings[selectedFaceIndex]) {
+                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                }
+                window.textureSettings[selectedFaceIndex].offsetY += stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-reset').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-copy-values').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                const faceSettings = window.textureSettings[selectedFaceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)} };`;
+                navigator.clipboard.writeText(code).then(() => {
+                    alert('Значения скопированы в буфер обмена!');
+                }).catch(() => {
+                    console.log(code);
+                    alert('Значения выведены в консоль');
+                });
+            });
+            
+            // Сохраняем ссылки на функции для обновления панели
+            window.updateTextureForFace = updateTextureForFace;
+            window.updateTexturePanel = updateTexturePanel;
+        }
+        
         function selectFace(faceIndex) {
             const materials = Array.isArray(window.dodecahedron.material) 
                 ? window.dodecahedron.material 
@@ -1978,6 +2161,13 @@
             
             // Показываем панель управления гранью
             faceControlsPanel.classList.add('active');
+            
+            // Показываем панель управления текстурой
+            const texturePanel = document.getElementById('texture-controls-panel');
+            if (texturePanel && window.updateTexturePanel) {
+                texturePanel.style.display = 'block';
+                window.updateTexturePanel(faceIndex);
+            }
         }
 
         function deselectFace() {
@@ -1991,6 +2181,12 @@
             }
             selectedFaceIndex = -1;
             faceControlsPanel.classList.remove('active');
+            
+            // Скрываем панель управления текстурой
+            const texturePanel = document.getElementById('texture-controls-panel');
+            if (texturePanel) {
+                texturePanel.style.display = 'none';
+            }
             updateFaceListSelection();
         }
 
