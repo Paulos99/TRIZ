@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+![1768318049761](image/index/1768318049761.png)![1768318051962](image/index/1768318051962.png)![1768318056109](image/index/1768318056109.png)![1768318061156](image/index/1768318061156.png)![1768318071234](image/index/1768318071234.png)![1768318085907](image/index/1768318085907.png)<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -1712,8 +1712,9 @@
         let touchStartZoom = initialCameraZ;
         let lastTouchDistance = 0;
         let lastTouchAngle = 0;
-        let touchStartRotation = { x: 0, y: 0 };
+        let touchStartRotation = { x: 0, y: 0, z: 0 };
         let isTwoFingerGesture = false;
+        let touchStartCenter = null;
 
         // Функция вычисления угла между двумя точками
         function getAngle(x1, y1, x2, y2) {
@@ -1746,6 +1747,9 @@
                 lastTouchDistance = touchStartDistance;
                 touchStartZoom = camera.position.z;
                 
+                // Центр между пальцами
+                touchStartCenter = getCenter(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
+                
                 // Угол между пальцами для вращения
                 lastTouchAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
                 
@@ -1753,7 +1757,8 @@
                 if (window.dodecahedron) {
                     touchStartRotation = {
                         x: window.dodecahedron.rotation.x,
-                        y: window.dodecahedron.rotation.y
+                        y: window.dodecahedron.rotation.y,
+                        z: window.dodecahedron.rotation.z
                     };
                 }
                 
@@ -1765,7 +1770,8 @@
                 if (window.dodecahedron) {
                     touchStartRotation = {
                         x: window.dodecahedron.rotation.x,
-                        y: window.dodecahedron.rotation.y
+                        y: window.dodecahedron.rotation.y,
+                        z: window.dodecahedron.rotation.z
                     };
                 }
                 registerInteraction();
@@ -1786,38 +1792,44 @@
                     touch2.clientY - touch1.clientY
                 );
                 
+                // Инкрементальный зум - используем изменение относительно предыдущего значения
                 if (lastTouchDistance > 0) {
-                    // Масштабирование на основе изменения расстояния
-                    const zoomDelta = (currentDistance - touchStartDistance) * 0.015;
-                    camera.position.z = touchStartZoom - zoomDelta;
+                    const distanceDelta = currentDistance - lastTouchDistance;
+                    const zoomSensitivity = 0.02;
+                    camera.position.z -= distanceDelta * zoomSensitivity;
                     camera.position.z = Math.max(2, Math.min(10, camera.position.z));
                 }
                 
-                // Rotate: вычисляем угол между пальцами
+                // Rotate: вычисляем изменение угла между пальцами
                 const currentAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
-                const angleDelta = currentAngle - lastTouchAngle;
+                let angleDelta = currentAngle - lastTouchAngle;
                 
-                if (Math.abs(angleDelta) > 0.01) {
-                    // Вращаем модель вокруг оси Z (взгляд камеры)
-                    // Используем ось камеры для вращения
-                    const worldAxis = new THREE.Vector3(0, 0, -1);
-                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, angleDelta);
-                    const currentQuaternion = window.dodecahedron.quaternion.clone();
-                    const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
-                    const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+                // Нормализуем угол к диапазону [-PI, PI]
+                while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+                while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+                
+                if (Math.abs(angleDelta) > 0.001) {
+                    // Вращаем модель вокруг вертикальной оси Y при вращении пальцами
+                    // Это создает эффект поворота объекта в горизонтальной плоскости
+                    const rotationSensitivity = 1.2;
+                    window.dodecahedron.rotation.y += angleDelta * rotationSensitivity;
                     
-                    window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
+                    // Нормализация угла Y
+                    if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                        window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                    }
                     
                     // Синхронизируем targetRotation и currentRotation
-                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    currentRotation = { x: euler.x, y: euler.y, z: euler.z };
+                    targetRotation.y = window.dodecahedron.rotation.y;
+                    currentRotation.y = window.dodecahedron.rotation.y;
                 }
                 
+                // Обновляем значения для следующей итерации
                 lastTouchDistance = currentDistance;
                 lastTouchAngle = currentAngle;
                 registerInteraction();
                 
-            } else if (e.touches.length === 1 && touchStart && window.dodecahedron) {
+            } else if (e.touches.length === 1 && touchStart && !isTwoFingerGesture && window.dodecahedron) {
                 // Один палец: вращение модели
                 const deltaX = e.touches[0].clientX - touchStart.x;
                 const deltaY = e.touches[0].clientY - touchStart.y;
@@ -1855,7 +1867,8 @@
                 lastTouchDistance = 0;
                 lastTouchAngle = 0;
                 isTwoFingerGesture = false;
-                touchStartRotation = { x: 0, y: 0 };
+                touchStartRotation = { x: 0, y: 0, z: 0 };
+                touchStartCenter = null;
             } else if (e.touches.length === 1) {
                 // Остался один палец - переключаемся на одно-пальцевый жест
                 isTwoFingerGesture = false;
@@ -1863,9 +1876,14 @@
                 if (window.dodecahedron) {
                     touchStartRotation = {
                         x: window.dodecahedron.rotation.x,
-                        y: window.dodecahedron.rotation.y
+                        y: window.dodecahedron.rotation.y,
+                        z: window.dodecahedron.rotation.z
                     };
                 }
+                // Сбрасываем значения для двухпальцевого жеста
+                lastTouchDistance = 0;
+                lastTouchAngle = 0;
+                touchStartCenter = null;
             }
         });
 
