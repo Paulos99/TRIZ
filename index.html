@@ -13,58 +13,93 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background: linear-gradient(-45deg, #0a0a1a, #1a0a2e, #16213e, #0f3460);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
+            background: #0a0a0f;
             overflow: hidden;
             height: 100vh;
             width: 100vw;
             position: relative;
         }
         
-        @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-        
+        /* Анимированный градиентный фон */
         body::before {
             content: '';
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: radial-gradient(circle at 20% 50%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(150, 100, 255, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 20%, rgba(100, 200, 255, 0.1) 0%, transparent 50%);
-            animation: radialPulse 20s ease-in-out infinite;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(100, 200, 255, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a0a1a 100%);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 400% 400%;
+            animation: gradientShift 20s ease infinite, radialPulse 15s ease-in-out infinite;
             pointer-events: none;
             z-index: 0;
+            opacity: 0.9;
+        }
+        
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%, 100% 100%, 50% 50%, 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
+            }
         }
         
         @keyframes radialPulse {
             0%, 100% {
-                opacity: 1;
+                opacity: 0.9;
                 transform: scale(1);
             }
             50% {
-                opacity: 0.8;
-                transform: scale(1.1);
+                opacity: 1;
+                transform: scale(1.05);
             }
         }
         
+        /* Дополнительные световые эффекты для глубины */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 30% 20%, rgba(120, 180, 255, 0.1) 0%, transparent 40%),
+                radial-gradient(ellipse at 70% 80%, rgba(180, 120, 255, 0.08) 0%, transparent 40%);
+            animation: lightDrift 25s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes lightDrift {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.8;
+            }
+            33% {
+                transform: translate(5%, 3%) scale(1.1);
+                opacity: 1;
+            }
+            66% {
+                transform: translate(-3%, -2%) scale(0.95);
+                opacity: 0.9;
+            }
+        }
+
         #canvas-container {
+            width: 100%;
+            height: 100%;
             position: relative;
             z-index: 1;
         }
-
 
         .controls-panel {
             position: fixed;
@@ -539,28 +574,6 @@
     <script>
         // Инициализация сцены
         const scene = new THREE.Scene();
-        
-        // Добавляем красивое освещение для светотеней
-        // Ambient light - мягкое общее освещение
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
-        
-        // Основной направленный свет (сверху-справа)
-        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        mainLight.position.set(5, 8, 5);
-        mainLight.castShadow = false;
-        scene.add(mainLight);
-        
-        // Дополнительный направленный свет (снизу-слева, более мягкий)
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-        fillLight.position.set(-5, -3, -5);
-        scene.add(fillLight);
-        
-        // Точечный свет для дополнительной глубины
-        const pointLight = new THREE.PointLight(0xffffff, 0.5);
-        pointLight.position.set(0, 10, 0);
-        scene.add(pointLight);
-        
         const camera = new THREE.PerspectiveCamera(
             75,
             window.innerWidth / window.innerHeight,
@@ -571,9 +584,6 @@
         camera.lookAt(0, 0, 0); // Явно указываем камере смотреть на центр сцены
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        
-        // Устанавливаем красивый градиентный фон
-        renderer.setClearColor(0x000000, 1);
         
         // Перехватываем ошибки WebGL
         const gl = renderer.getContext();
@@ -615,8 +625,12 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         // Возвращаем исходный тёмный фон
-        renderer.setClearColor(0x0a0a0f, 1);
+        // Полупрозрачный фон для видимости градиента
+        renderer.setClearColor(0x0a0a0f, 0.3);
         renderer.shadowMap.enabled = false;
+        // Включаем tone mapping для более реалистичного вида
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
 
         // Глобальная ссылка на панель списка граней (инициализируется позже)
         let faceListElement = null;
@@ -670,12 +684,52 @@
             }
         }, 100);
 
+        // Освещение для красивых светотеней
+        // Мягкое общее освещение (ambient) - создает базовую видимость
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+        scene.add(ambientLight);
+
+        // Основной направленный свет (ключевой свет) - сверху слева
+        // Создает основные тени и объем
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(6, 10, 4);
+        mainLight.castShadow = false;
+        // Добавляем легкий цветовой оттенок для теплоты
+        mainLight.color.setHex(0xfff8f0);
+        scene.add(mainLight);
+
+        // Заполняющий свет (fill light) - снизу справа
+        // Мягко заполняет тени, не создавая плоского вида
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        fillLight.position.set(-4, -3, -5);
+        fillLight.castShadow = false;
+        // Легкий холодный оттенок для контраста
+        fillLight.color.setHex(0xe0f0ff);
+        scene.add(fillLight);
+
+        // Римский свет (rim light) - сзади для контура
+        // Подчеркивает края фигуры, добавляет глубину
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        rimLight.position.set(-2, 2, -8);
+        rimLight.castShadow = false;
+        rimLight.color.setHex(0xb8d4ff);
+        scene.add(rimLight);
+        
+        // Дополнительный точечный свет для акцентов
+        const accentLight = new THREE.PointLight(0xffffff, 0.6);
+        accentLight.position.set(0, 8, 0);
+        accentLight.castShadow = false;
+        accentLight.color.setHex(0xffffff);
+        scene.add(accentLight);
+        
+        console.log('Освещение добавлено в сцену');
+
         // Создание додекаэдра
         const geometry = new THREE.DodecahedronGeometry(1, 0);
         console.log('Геометрия додекаэдра создана:', geometry);
         const materials = [];
         
-        // Функция создания белой текстуры с номером грани (нумерация 0-11)
+        // Функция создания белой текстуры с номером грани
         function createNumberedTexture(faceNumber) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -1060,19 +1114,19 @@
         if (!window.textureSettings) {
             window.textureSettings = {};
         }
-        // Применяем настроенные значения для всех граней (нумерация 0-11)
-        window.textureSettings[0] = { rotation: -1.535890, offsetX: -0.990000, offsetY: -0.010000, scale: 1.000000 }; // Грань 0 (бывшая 12)
-        window.textureSettings[1] = { rotation: -1.570796, offsetX: -0.960000, offsetY: 0.080000, scale: 1.000000 }; // Грань 1
-        window.textureSettings[2] = { rotation: -1.535890, offsetX: -0.990000, offsetY: 0.000000, scale: 1.000000 }; // Грань 2
-        window.textureSettings[3] = { rotation: -1.518436, offsetX: -1.060000, offsetY: 0.030000, scale: 1.000000 }; // Грань 3
-        window.textureSettings[4] = { rotation: -1.535890, offsetX: -0.960000, offsetY: 0.020000, scale: 1.000000 }; // Грань 4
-        window.textureSettings[5] = { rotation: -0.296706, offsetX: -1.030000, offsetY: 0.080000, scale: 1.000000 }; // Грань 5
-        window.textureSettings[6] = { rotation: -0.279253, offsetX: -1.030000, offsetY: 0.090000, scale: 1.000000 }; // Грань 6
-        window.textureSettings[7] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 7
-        window.textureSettings[8] = { rotation: -1.535890, offsetX: -1.040000, offsetY: 0.020000, scale: 1.000000 }; // Грань 8
-        window.textureSettings[9] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 9
-        window.textureSettings[10] = { rotation: -1.535890, offsetX: -0.950000, offsetY: 0.030000, scale: 1.000000 }; // Грань 10
-        window.textureSettings[11] = { rotation: -2.827433, offsetX: -0.950000, offsetY: 0.100000, scale: 1.000000 }; // Грань 11
+        // Применяем настроенные значения для всех граней
+        window.textureSettings[0] = { rotation: -1.570796, offsetX: -0.960000, offsetY: 0.080000, scale: 1.000000 }; // Грань 1
+        window.textureSettings[1] = { rotation: -1.535890, offsetX: -0.990000, offsetY: 0.000000, scale: 1.000000 }; // Грань 2
+        window.textureSettings[2] = { rotation: -1.518436, offsetX: -1.060000, offsetY: 0.030000, scale: 1.000000 }; // Грань 3
+        window.textureSettings[3] = { rotation: -1.535890, offsetX: -0.960000, offsetY: 0.020000, scale: 1.000000 }; // Грань 4
+        window.textureSettings[4] = { rotation: -0.296706, offsetX: -1.030000, offsetY: 0.080000, scale: 1.000000 }; // Грань 5
+        window.textureSettings[5] = { rotation: -0.279253, offsetX: -1.030000, offsetY: 0.090000, scale: 1.000000 }; // Грань 6
+        window.textureSettings[6] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 7
+        window.textureSettings[7] = { rotation: -1.535890, offsetX: -1.040000, offsetY: 0.020000, scale: 1.000000 }; // Грань 8
+        window.textureSettings[8] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 9
+        window.textureSettings[9] = { rotation: -1.535890, offsetX: -0.950000, offsetY: 0.030000, scale: 1.000000 }; // Грань 10
+        window.textureSettings[10] = { rotation: -2.827433, offsetX: -0.950000, offsetY: 0.100000, scale: 1.000000 }; // Грань 11
+        window.textureSettings[11] = { rotation: -1.535890, offsetX: -0.990000, offsetY: -0.010000, scale: 1.000000 }; // Грань 12
         
         let loadedCount = 0;
         const totalTextures = 12;
@@ -1185,15 +1239,17 @@
                 }
                 
                 // Включаем прозрачность для PNG с альфа-каналом
-                // Используем MeshStandardMaterial для поддержки освещения и красивых теней
+                // Используем MeshStandardMaterial для поддержки освещения и красивых светотеней
                 newMaterials.push(new THREE.MeshStandardMaterial({
                     map: texture,
                     side: THREE.DoubleSide,
                     transparent: true, // Включаем прозрачность для PNG
                     opacity: 1.0,
                     alphaTest: 0.0, // Низкий порог для корректного отображения прозрачности
-                    metalness: 0.1,
-                    roughness: 0.7
+                    metalness: 0.05, // Легкий металлический отблеск
+                    roughness: 0.85, // Матовая поверхность для мягких теней
+                    emissive: 0x000000, // Без свечения
+                    emissiveIntensity: 0.0
                 }));
             }
             
@@ -1217,7 +1273,7 @@
         // Временно создаем материалы с пронумерованными текстурами для отображения до загрузки
         const newMaterials = [];
         for (let i = 0; i < 12; i++) {
-            const tempTexture = createNumberedTexture(i);
+            const tempTexture = createNumberedTexture(i + 1);
             tempTexture.offset.set(0, 0);
             tempTexture.repeat.set(1, 1);
             tempTexture.center.set(0.5, 0.5);
@@ -1484,7 +1540,7 @@
                         faceRotation = 0;
                     }
                     
-                    console.log(`Грань ${groupIndex}: угол поворота = ${(faceRotation * 180 / Math.PI).toFixed(1)}°`);
+                    console.log(`Грань ${groupIndex + 1}: угол поворота = ${(faceRotation * 180 / Math.PI).toFixed(1)}°`);
                     
                     // Сохраняем ориентацию
                     faceOrientations[groupIndex] = {
@@ -1614,8 +1670,8 @@
             if (window.dodecahedron) {
                 camera.position.set(0, 0, initialCameraZ);
                 deselectFace();
-                centerOnFace(0); // Грань 0 имеет индекс 0
-                selectFace(0);   // Выделяем грань 0
+                centerOnFace(0); // Грань 1 имеет индекс 0
+                selectFace(0);   // Выделяем грань 1
                 rotateFace(Math.PI); // Поворачиваем на 180°
             }
         }, 100); // Небольшая задержка для гарантии, что все инициализировано
@@ -1869,7 +1925,7 @@
             registerInteraction();
         });
 
-        // Сброс вида - возврат на грань 0 (повернута на 180°)
+        // Сброс вида - возврат на грань 1 (повернута на 180°)
         document.getElementById('reset').addEventListener('click', () => {
             camera.position.set(0, 0, initialCameraZ);
             if (window.dodecahedron) {
@@ -1877,9 +1933,9 @@
                 deselectFace();
                 // Центрируем на грани 1 (индекс 0)
                 centerOnFace(0);
-                // Выделяем грань 0
+                // Выделяем грань 1
                 selectFace(0);
-                // Поворачиваем грань 0 на 180° вокруг оси камеры
+                // Поворачиваем грань 1 на 180° вокруг оси камеры
                 rotateFace(Math.PI);
             }
             registerInteraction();
@@ -2126,7 +2182,7 @@
             function updateTexturePanel(faceIndex) {
                 const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
                 
-                document.getElementById('texture-face-number').textContent = faceIndex;
+                document.getElementById('texture-face-number').textContent = faceIndex + 1;
                 document.getElementById('texture-rotation-value').textContent = 
                     (faceSettings.rotation * 180 / Math.PI).toFixed(1) + '°';
                 document.getElementById('texture-offset-x-value').textContent = faceSettings.offsetX.toFixed(3);
@@ -2136,7 +2192,7 @@
                 // Выводим значения для копирования
                 const output = document.getElementById('texture-values-output');
                 if (output) {
-                    output.textContent = `Грань ${faceIndex}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)}`;
+                    output.textContent = `Грань ${faceIndex + 1}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)}`;
                 }
             }
             
@@ -2336,7 +2392,7 @@
             document.getElementById('texture-copy-values').addEventListener('click', () => {
                 if (selectedFaceIndex < 0) return;
                 const faceSettings = window.textureSettings[selectedFaceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
-                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)} }; // Грань ${selectedFaceIndex}`;
+                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)} };`;
                 navigator.clipboard.writeText(code).then(() => {
                     alert('Значения скопированы в буфер обмена!');
                 }).catch(() => {
@@ -2479,7 +2535,7 @@
             registerInteraction();
         });
 
-        // Инициализация списка граней (номера 0–11)
+        // Инициализация списка граней (номера 1–12)
         function initFaceList() {
             try {
                 if (!faceListElement) {
@@ -2492,7 +2548,7 @@
                 for (let i = 0; i < 12; i++) {
                     const btn = document.createElement('button');
                     btn.className = 'face-list-item';
-                    btn.textContent = String(i);
+                    btn.textContent = String(i + 1);
                     btn.dataset.faceIndex = i.toString();
                     
                     btn.addEventListener('click', () => {
