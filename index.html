@@ -298,19 +298,34 @@
         @media (max-width: 768px) {
             .face-list {
                 top: auto;
-                bottom: 110px;
-                right: 12px;
-                transform: none;
+                bottom: 20px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
                 flex-direction: row;
-                max-width: 85%;
+                max-width: 95%;
                 max-height: none;
-                padding: 6px 8px;
+                padding: 8px 12px;
             }
+            
             .controls-panel {
-                bottom: 12px;
-                padding: 10px 12px;
-                gap: 8px;
-                border-radius: 12px;
+                display: none; /* Скрываем панель управления на мобильных */
+            }
+            
+            /* Кнопка сброса вверх вправо на мобильных */
+            #reset {
+                position: fixed !important;
+                top: 20px !important;
+                right: 20px !important;
+                bottom: auto !important;
+                left: auto !important;
+                transform: none !important;
+                z-index: 1000;
+            }
+            
+            /* Скрываем панель управления гранью на мобильных */
+            .face-controls-panel {
+                display: none !important;
             }
 
             .btn {
@@ -1694,7 +1709,7 @@
         // Управление мышью и тачем
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let rotationSpeed = 0.005;
+        let rotationSpeed = 1;
         let initialCameraZ = 7; // Увеличено для более отдаленного вида
         
         // Вращение мышью
@@ -1783,9 +1798,6 @@
                 touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 isTouchDragging = false;
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1154',message:'touchstart 1 палец',data:{x:e.touches[0].clientX,y:e.touches[0].clientY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
                 registerInteraction();
             } else if (e.touches.length === 2) {
                 touchStartDistance = Math.hypot(
@@ -1814,17 +1826,14 @@
                 }
                 
                 if (isTouchDragging) {
-                    // Вращение одним пальцем - используем дельту от предыдущей позиции (как в мыши)
+                    // Вращение одним пальцем - используем дельту от предыдущей позиции
                     const deltaX = e.touches[0].clientX - previousTouchPosition.x;
                     const deltaY = e.touches[0].clientY - previousTouchPosition.y;
                     
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1172',message:'touchmove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousTouchPosition.x,prevY:previousTouchPosition.y,currX:e.touches[0].clientX,currY:e.touches[0].clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
-                    
-                    // Мгновенное вращение при перетаскивании на тач-устройствах (уменьшенная чувствительность)
-                    window.dodecahedron.rotation.y += deltaX * rotationSpeed * 0.5;
-                    window.dodecahedron.rotation.x += deltaY * rotationSpeed * 0.5;
+                    // Вращение с правильной чувствительностью
+                    const sensitivity = 0.01; // Коэффициент чувствительности для тач-устройств
+                    window.dodecahedron.rotation.y += deltaX * sensitivity;
+                    window.dodecahedron.rotation.x += deltaY * sensitivity;
                     
                     // Нормализация углов для предотвращения накопления
                     if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
@@ -1851,9 +1860,11 @@
                     e.touches[0].clientY - e.touches[1].clientY
                 );
                 
-                const zoomDelta = (touchDistance - lastTouchDistance) * 0.005; // Уменьшенная чувствительность зума
-                camera.position.z = touchStartZoom - zoomDelta;
-                camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+                if (lastTouchDistance > 0) {
+                    const zoomDelta = (touchDistance - lastTouchDistance) * 0.02; // Улучшенная чувствительность зума
+                    camera.position.z = touchStartZoom - zoomDelta;
+                    camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+                }
                 
                 lastTouchDistance = touchDistance;
                 registerInteraction();
@@ -1866,9 +1877,6 @@
             touchStartDistance = 0;
             lastTouchDistance = 0;
             isTouchDragging = false;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1204',message:'touchend',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
         });
 
         // Кнопки управления
@@ -1890,11 +1898,10 @@
             if (window.dodecahedron) {
                 // Сбрасываем выделение
                 deselectFace();
-                // Центрируем на грани 12 (индекс 11)
-                centerOnFace(11);
+                // Центрируем на грани 12 (индекс 11) с применением поворота
+                centerOnFace(11, true);
                 // Выделяем грань 12
                 selectFace(11);
-                // Для грани 12 поворот не требуется (0)
             }
             registerInteraction();
         });
@@ -2006,7 +2013,7 @@
         }
 
         // Функция центрирования додекаэдра по выбранной грани
-        function centerOnFace(faceIndex) {
+        function centerOnFace(faceIndex, applyRotation = false) {
             if (!window.dodecahedron || faceIndex < 0) return;
             
             const geometry = window.dodecahedron.geometry;
@@ -2064,10 +2071,19 @@
             }
             
             // Вычисляем кватернион для поворота нормали грани к камере
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(faceNormal, cameraDirection);
+            let quaternion = new THREE.Quaternion().setFromUnitVectors(faceNormal, cameraDirection);
+            
+            // Если нужно применить поворот грани, добавляем его сразу
+            if (applyRotation && faceAutoRotations && faceAutoRotations[faceIndex] !== undefined) {
+                const rotationAngle = faceAutoRotations[faceIndex];
+                if (rotationAngle !== 0) {
+                    const worldAxis = new THREE.Vector3(0, 0, -1);
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, rotationAngle);
+                    quaternion = rotationQuaternion.multiply(quaternion);
+                }
+            }
             
             // Обновляем targetRotation для плавной анимации
-            // currentRotation остаётся текущим значением rotation додекаэдра
             const euler = new THREE.Euler().setFromQuaternion(quaternion);
             targetRotation = { x: euler.x, y: euler.y, z: euler.z };
             
@@ -2080,10 +2096,6 @@
             
             // Устанавливаем флаг центрирования
             isCentering = true;
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1481',message:'Центрирование по грани (плавная анимация)',data:{faceIndex:faceIndex,faceVerticesCount:faceVertices.length,faceCenter:{x:faceCenter.x,y:faceCenter.y,z:faceCenter.z},faceNormal:{x:faceNormal.x,y:faceNormal.y,z:faceNormal.z},currentRotation:currentRotation,targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         }
         
         // Инициализация управления текстурами
@@ -2551,17 +2563,9 @@
                     btn.dataset.faceIndex = i.toString();
                     
                     btn.addEventListener('click', () => {
-                        // При выборе из списка: выделяем грань, центрируем камеру и поворачиваем грань
+                        // При выборе из списка: сразу вычисляем финальное положение с поворотом
                         selectFace(i);
-                        centerOnFace(i);
-                        // Поворачиваем грань на нужный угол после полной стабилизации камеры
-                        const rotationAngle = faceAutoRotations[i] || 0;
-                        if (rotationAngle !== 0) {
-                            // Ждем завершения центрирования перед поворотом
-                            waitForCentering(() => {
-                                rotateFace(rotationAngle);
-                            });
-                        }
+                        centerOnFace(i, true); // Передаем true для применения поворота сразу
                         registerInteraction();
                     });
                     
