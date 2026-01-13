@@ -2120,6 +2120,9 @@
                 z: window.dodecahedron.rotation.z 
             };
             
+            // Устанавливаем флаг центрирования
+            isCentering = true;
+            
             // #region agent log
             fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1481',message:'Центрирование по грани (плавная анимация)',data:{faceIndex:faceIndex,faceVerticesCount:faceVertices.length,faceCenter:{x:faceCenter.x,y:faceCenter.y,z:faceCenter.z},faceNormal:{x:faceNormal.x,y:faceNormal.y,z:faceNormal.z},currentRotation:currentRotation,targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
             // #endregion
@@ -2447,6 +2450,7 @@
         let targetRotation = { x: 0, y: 0, z: 0 };
         let currentRotation = { x: 0, y: 0, z: 0 };
         const smoothRotationSpeed = 0.1; // Скорость плавного вращения
+        let isCentering = false; // Флаг, указывающий, что идет центрирование
         const faceRotationStep = (2 * Math.PI) / 10; // 36°: полный оборот за 10 шагов
         
         // Массив поворотов для каждой грани при выборе (индексы 0-11 соответствуют граням 1-12)
@@ -2514,7 +2518,31 @@
             const distance = currentQuat.angleTo(targetQuat);
             if (distance > 0.001) {
                 window.dodecahedron.rotation.set(currentRotation.x, currentRotation.y, currentRotation.z);
+            } else if (isCentering) {
+                // Анимация центрирования завершена
+                isCentering = false;
+                // Вызываем событие завершения центрирования
+                window.dispatchEvent(new CustomEvent('faceCentered'));
             }
+        }
+        
+        // Функция для ожидания завершения центрирования
+        function waitForCentering(callback) {
+            isCentering = true;
+            const checkInterval = setInterval(() => {
+                if (!isCentering) {
+                    clearInterval(checkInterval);
+                    // Небольшая дополнительная задержка для полной стабилизации
+                    setTimeout(callback, 200);
+                }
+            }, 50); // Проверяем каждые 50ms
+            
+            // Таймаут на случай, если анимация не завершится
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                isCentering = false;
+                callback();
+            }, 3000); // Максимум 3 секунды
         }
 
         // Обработчики кнопок вращения грани
@@ -2555,13 +2583,13 @@
                         // При выборе из списка: выделяем грань, центрируем камеру и поворачиваем грань
                         selectFace(i);
                         centerOnFace(i);
-                        // Поворачиваем грань на нужный угол после центрирования
+                        // Поворачиваем грань на нужный угол после полной стабилизации камеры
                         const rotationAngle = faceAutoRotations[i] || 0;
                         if (rotationAngle !== 0) {
-                            // Небольшая задержка для завершения центрирования перед поворотом
-                            setTimeout(() => {
+                            // Ждем завершения центрирования перед поворотом
+                            waitForCentering(() => {
                                 rotateFace(rotationAngle);
-                            }, 300);
+                            });
                         }
                         registerInteraction();
                     });
