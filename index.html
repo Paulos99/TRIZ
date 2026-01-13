@@ -2411,7 +2411,7 @@
                 ? window.dodecahedron.material 
                 : [window.dodecahedron.material];
             
-            // Снимаем выделение с предыдущей грани (без подсветки)
+            // Снимаем выделение с предыдущей грани
             if (selectedFaceIndex >= 0 && materials[selectedFaceIndex]) {
                 if (materials[selectedFaceIndex].emissive) {
                     materials[selectedFaceIndex].emissive.setHex(0x000000);
@@ -2440,12 +2440,6 @@
             }
             selectedFaceIndex = -1;
             faceControlsPanel.classList.remove('active');
-            
-            // Скрываем панель управления текстурой
-            const texturePanel = document.getElementById('texture-controls-panel');
-            if (texturePanel) {
-                texturePanel.style.display = 'none';
-            }
             updateFaceListSelection();
         }
 
@@ -2453,23 +2447,23 @@
         let targetRotation = { x: 0, y: 0, z: 0 };
         let currentRotation = { x: 0, y: 0, z: 0 };
         const smoothRotationSpeed = 0.1; // Скорость плавного вращения
-        const faceRotationStep = (2 * Math.PI) / 5; // 72°: полный оборот за 5 шагов (для пятиугольника)
+        const faceRotationStep = (2 * Math.PI) / 10; // 36°: полный оборот за 10 шагов
         
         // Массив поворотов для каждой грани при выборе (индексы 0-11 соответствуют граням 1-12)
-        // Каждый шаг = 72° (2π/5 радиан)
+        // Каждый шаг = 36° (2π/10 радиан)
         const faceAutoRotations = [
             -1 * faceRotationStep,  // Грань 1: 1 влево
-            1 * faceRotationStep,   // Грань 2: 1 вправо
-            1 * faceRotationStep,   // Грань 3: 1 вправо
-            0,                      // Грань 4: без поворота
-            2 * faceRotationStep,   // Грань 5: 2 вправо
-            -4 * faceRotationStep,  // Грань 6: 4 влево
-            -1 * faceRotationStep,  // Грань 7: 1 влево
-            1 * faceRotationStep,   // Грань 8: 1 вправо
-            -5 * faceRotationStep,  // Грань 9: 5 влево (эквивалентно 0, но для ясности)
-            0,                      // Грань 10: без поворота
-            -2 * faceRotationStep,   // Грань 11: 2 влево
-            0                       // Грань 12: без поворота
+            +1 * faceRotationStep,   // Грань 2: 1 вправо
+            +1 * faceRotationStep,   // Грань 3: 1 вправо
+            0,                       // Грань 4: без поворота
+            +2 * faceRotationStep,   // Грань 5: 2 вправо
+            -4 * faceRotationStep,   // Грань 6: 4 влево
+            -1 * faceRotationStep,   // Грань 7: 1 влево
+            +1 * faceRotationStep,   // Грань 8: 1 вправо
+            -5 * faceRotationStep,   // Грань 9: 5 влево
+            0,                       // Грань 10: без поворота
+            -2 * faceRotationStep,  // Грань 11: 2 влево
+            0                        // Грань 12: без поворота
         ];
         
         function rotateFace(angle) {
