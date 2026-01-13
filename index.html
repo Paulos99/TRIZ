@@ -20,7 +20,7 @@
             position: relative;
         }
         
-        /* Анимированный градиентный фон с яркими цветными элементами */
+        /* Анимированный градиентный фон */
         body::before {
             content: '';
             position: fixed;
@@ -29,46 +29,41 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(circle at 15% 25%, rgba(100, 200, 255, 0.4) 0%, transparent 45%),
-                radial-gradient(circle at 85% 75%, rgba(255, 100, 200, 0.35) 0%, transparent 45%),
-                radial-gradient(circle at 50% 50%, rgba(150, 255, 150, 0.25) 0%, transparent 50%),
-                radial-gradient(circle at 70% 20%, rgba(255, 200, 100, 0.3) 0%, transparent 40%),
-                radial-gradient(circle at 30% 80%, rgba(200, 150, 255, 0.3) 0%, transparent 40%),
-                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 20%, #16213e 40%, #0f3460 60%, #1a1a3e 80%, #0a0a1a 100%);
-            background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 400% 400%;
-            animation: gradientShift 25s ease infinite, radialPulse 18s ease-in-out infinite;
+                radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(100, 200, 255, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a0a1a 100%);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 400% 400%;
+            animation: gradientShift 20s ease infinite, radialPulse 15s ease-in-out infinite;
             pointer-events: none;
             z-index: 0;
-            opacity: 1;
+            opacity: 0.9;
         }
         
         @keyframes gradientShift {
             0% {
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 50%;
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
             }
-            33% {
-                background-position: 20% 10%, 80% 90%, 50% 50%, 70% 30%, 30% 70%, 100% 50%;
-            }
-            66% {
-                background-position: 10% 20%, 90% 80%, 40% 60%, 60% 40%, 40% 60%, 50% 100%;
+            50% {
+                background-position: 100% 50%, 100% 100%, 50% 50%, 100% 50%;
             }
             100% {
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 50%;
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
             }
         }
         
         @keyframes radialPulse {
             0%, 100% {
-                opacity: 1;
+                opacity: 0.9;
                 transform: scale(1);
             }
             50% {
-                opacity: 1.1;
-                transform: scale(1.08);
+                opacity: 1;
+                transform: scale(1.05);
             }
         }
         
-        /* Дополнительные яркие световые эффекты для глубины */
+        /* Дополнительные световые эффекты для глубины */
         body::after {
             content: '';
             position: fixed;
@@ -77,40 +72,25 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(ellipse at 25% 15%, rgba(120, 220, 255, 0.25) 0%, transparent 35%),
-                radial-gradient(ellipse at 75% 85%, rgba(255, 120, 220, 0.22) 0%, transparent 35%),
-                radial-gradient(ellipse at 60% 30%, rgba(255, 220, 120, 0.2) 0%, transparent 30%),
-                radial-gradient(ellipse at 40% 70%, rgba(220, 150, 255, 0.2) 0%, transparent 30%);
-            animation: lightDrift 30s ease-in-out infinite, colorShift 20s ease infinite;
+                radial-gradient(ellipse at 30% 20%, rgba(120, 180, 255, 0.1) 0%, transparent 40%),
+                radial-gradient(ellipse at 70% 80%, rgba(180, 120, 255, 0.08) 0%, transparent 40%);
+            animation: lightDrift 25s ease-in-out infinite;
             pointer-events: none;
             z-index: 0;
         }
         
         @keyframes lightDrift {
             0%, 100% {
-                transform: translate(0, 0) scale(1) rotate(0deg);
+                transform: translate(0, 0) scale(1);
+                opacity: 0.8;
+            }
+            33% {
+                transform: translate(5%, 3%) scale(1.1);
                 opacity: 1;
             }
-            25% {
-                transform: translate(8%, 5%) scale(1.15) rotate(5deg);
-                opacity: 1.1;
-            }
-            50% {
-                transform: translate(-5%, 8%) scale(0.9) rotate(-5deg);
-                opacity: 0.95;
-            }
-            75% {
-                transform: translate(5%, -3%) scale(1.1) rotate(3deg);
-                opacity: 1.05;
-            }
-        }
-        
-        @keyframes colorShift {
-            0%, 100% {
-                filter: hue-rotate(0deg);
-            }
-            50% {
-                filter: hue-rotate(30deg);
+            66% {
+                transform: translate(-3%, -2%) scale(0.95);
+                opacity: 0.9;
             }
         }
 
@@ -1945,16 +1925,18 @@
             registerInteraction();
         });
 
-        // Сброс вида - возврат на грань 12
+        // Сброс вида - возврат на грань 1 (повернута на 180°)
         document.getElementById('reset').addEventListener('click', () => {
             camera.position.set(0, 0, initialCameraZ);
             if (window.dodecahedron) {
                 // Сбрасываем выделение
                 deselectFace();
-                // Центрируем на грани 12 (индекс 11)
-                centerOnFace(11);
-                // Выделяем грань 12
-                selectFace(11);
+                // Центрируем на грани 1 (индекс 0)
+                centerOnFace(0);
+                // Выделяем грань 1
+                selectFace(0);
+                // Поворачиваем грань 1 на 180° вокруг оси камеры
+                rotateFace(Math.PI);
             }
             registerInteraction();
         });
@@ -2424,29 +2406,12 @@
             window.updateTexturePanel = updateTexturePanel;
         }
         
-        // Массив поворотов для каждой грани (индексы 0-11 соответствуют граням 1-12)
-        // У пятиугольника 5 сторон, один шаг = 72° = 2π/5 радиан
-        const faceRotations = [
-            -2 * Math.PI / 5,  // Грань 1: 1 влево
-            2 * Math.PI / 5,   // Грань 2: 1 вправо
-            2 * Math.PI / 5,   // Грань 3: 1 вправо
-            0,                 // Грань 4: без поворота
-            4 * Math.PI / 5,   // Грань 5: 2 вправо
-            -8 * Math.PI / 5,  // Грань 6: 4 влево (эквивалентно 1 вправо)
-            -2 * Math.PI / 5,  // Грань 7: 1 влево
-            2 * Math.PI / 5,   // Грань 8: 1 вправо
-            -10 * Math.PI / 5, // Грань 9: 5 влево (эквивалентно 0)
-            0,                 // Грань 10: без поворота
-            -4 * Math.PI / 5,  // Грань 11: 2 влево
-            0                  // Грань 12: без поворота
-        ];
-        
         function selectFace(faceIndex) {
             const materials = Array.isArray(window.dodecahedron.material) 
                 ? window.dodecahedron.material 
                 : [window.dodecahedron.material];
             
-            // Убираем подсветку с предыдущей грани (если была)
+            // Снимаем выделение с предыдущей грани (без подсветки)
             if (selectedFaceIndex >= 0 && materials[selectedFaceIndex]) {
                 if (materials[selectedFaceIndex].emissive) {
                     materials[selectedFaceIndex].emissive.setHex(0x000000);
@@ -2462,18 +2427,6 @@
             
             // Показываем панель управления гранью
             faceControlsPanel.classList.add('active');
-            
-            // Центрируем на грани
-            centerOnFace(faceIndex);
-            
-            // Поворачиваем грань для удобного чтения
-            const rotationAngle = faceRotations[faceIndex] || 0;
-            if (rotationAngle !== 0) {
-                // Небольшая задержка для завершения центрирования
-                setTimeout(() => {
-                    rotateFace(rotationAngle);
-                }, 100);
-            }
         }
 
         function deselectFace() {
@@ -2487,6 +2440,12 @@
             }
             selectedFaceIndex = -1;
             faceControlsPanel.classList.remove('active');
+            
+            // Скрываем панель управления текстурой
+            const texturePanel = document.getElementById('texture-controls-panel');
+            if (texturePanel) {
+                texturePanel.style.display = 'none';
+            }
             updateFaceListSelection();
         }
 
@@ -2494,7 +2453,24 @@
         let targetRotation = { x: 0, y: 0, z: 0 };
         let currentRotation = { x: 0, y: 0, z: 0 };
         const smoothRotationSpeed = 0.1; // Скорость плавного вращения
-        const faceRotationStep = (2 * Math.PI) / 10; // 36°: полный оборот за 10 шагов
+        const faceRotationStep = (2 * Math.PI) / 5; // 72°: полный оборот за 5 шагов (для пятиугольника)
+        
+        // Массив поворотов для каждой грани при выборе (индексы 0-11 соответствуют граням 1-12)
+        // Каждый шаг = 72° (2π/5 радиан)
+        const faceAutoRotations = [
+            -1 * faceRotationStep,  // Грань 1: 1 влево
+            1 * faceRotationStep,   // Грань 2: 1 вправо
+            1 * faceRotationStep,   // Грань 3: 1 вправо
+            0,                      // Грань 4: без поворота
+            2 * faceRotationStep,   // Грань 5: 2 вправо
+            -4 * faceRotationStep,  // Грань 6: 4 влево
+            -1 * faceRotationStep,  // Грань 7: 1 влево
+            1 * faceRotationStep,   // Грань 8: 1 вправо
+            -5 * faceRotationStep,  // Грань 9: 5 влево (эквивалентно 0, но для ясности)
+            0,                      // Грань 10: без поворота
+            -2 * faceRotationStep,   // Грань 11: 2 влево
+            0                       // Грань 12: без поворота
+        ];
         
         function rotateFace(angle) {
             if (selectedFaceIndex < 0 || !window.dodecahedron) return;
@@ -2582,9 +2558,17 @@
                     btn.dataset.faceIndex = i.toString();
                     
                     btn.addEventListener('click', () => {
-                        // При выборе из списка: выделяем грань и плавно центрируем камеру на ней
+                        // При выборе из списка: выделяем грань, центрируем камеру и поворачиваем грань
                         selectFace(i);
                         centerOnFace(i);
+                        // Поворачиваем грань на нужный угол после центрирования
+                        const rotationAngle = faceAutoRotations[i] || 0;
+                        if (rotationAngle !== 0) {
+                            // Небольшая задержка для завершения центрирования перед поворотом
+                            setTimeout(() => {
+                                rotateFace(rotationAngle);
+                            }, 300);
+                        }
                         registerInteraction();
                     });
                     
