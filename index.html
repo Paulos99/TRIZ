@@ -1,0 +1,2631 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D ТРИЗ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #0a0a0f;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+        
+        /* Анимированный градиентный фон */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.12) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(100, 200, 255, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a0a1a 100%);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 400% 400%;
+            animation: gradientShift 20s ease infinite, radialPulse 15s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.9;
+        }
+        
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%, 100% 100%, 50% 50%, 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%, 0% 0%, 0% 0%, 0% 50%;
+            }
+        }
+        
+        @keyframes radialPulse {
+            0%, 100% {
+                opacity: 0.9;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+        }
+        
+        /* Дополнительные световые эффекты для глубины */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 30% 20%, rgba(120, 180, 255, 0.1) 0%, transparent 40%),
+                radial-gradient(ellipse at 70% 80%, rgba(180, 120, 255, 0.08) 0%, transparent 40%);
+            animation: lightDrift 25s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes lightDrift {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.8;
+            }
+            33% {
+                transform: translate(5%, 3%) scale(1.1);
+                opacity: 1;
+            }
+            66% {
+                transform: translate(-3%, -2%) scale(0.95);
+                opacity: 0.9;
+            }
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .controls-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.92);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 20px;
+            padding: 14px 24px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 95%;
+        }
+
+        .face-controls-panel {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.92);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 20px;
+            padding: 14px 24px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            display: none;
+            gap: 14px;
+            align-items: center;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 95%;
+        }
+
+        .face-controls-panel.active {
+            display: flex;
+        }
+
+        .face-controls-panel .label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-right: 8px;
+            font-weight: 300;
+        }
+
+        .btn-face {
+            background: rgba(100, 150, 255, 0.15);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-face:hover {
+            background: rgba(100, 150, 255, 0.25);
+            border-color: rgba(100, 150, 255, 0.4);
+        }
+
+        .btn-face:active {
+            background: rgba(100, 150, 255, 0.3);
+        }
+
+        /* Список граней (номера 1–12) */
+        .face-list {
+            position: fixed;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
+            background: rgba(15, 20, 35, 0.96);
+            border-radius: 18px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            z-index: 150; /* выше панели и подсказок */
+            max-height: 80%;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .face-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        .face-list-item {
+            min-width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.25);
+            background: rgba(30, 35, 50, 0.6);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0 10px;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .face-list-item:hover {
+            background: rgba(50, 70, 100, 0.7);
+            border-color: rgba(100, 150, 255, 0.4);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(100, 150, 255, 0.25);
+        }
+
+        .face-list-item.active {
+            background: linear-gradient(135deg, rgba(100, 150, 255, 0.95) 0%, rgba(120, 170, 255, 0.95) 100%);
+            border-color: rgba(100, 150, 255, 1);
+            color: #0a0a0f;
+            font-weight: 700;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(100, 150, 255, 0.5), 0 0 25px rgba(100, 150, 255, 0.4);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .control-group label {
+            display: none;
+        }
+
+        /* Скрытие кнопок на мобильных устройствах */
+        @media (max-width: 768px) {
+            .desktop-only {
+                display: none !important;
+            }
+        }
+
+        .btn {
+            background: rgba(30, 35, 50, 0.7);
+            border: 1px solid rgba(100, 150, 255, 0.25);
+            color: rgba(255, 255, 255, 0.95);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(100, 150, 255, 0);
+        }
+
+        .btn:hover {
+            background: rgba(50, 70, 100, 0.8);
+            border-color: rgba(100, 150, 255, 0.5);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(100, 150, 255, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+            background: rgba(70, 100, 150, 0.9);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 10px rgba(100, 150, 255, 0.2);
+        }
+
+        .title {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.98);
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            z-index: 100;
+            text-align: center;
+            text-shadow: 0 2px 20px rgba(100, 150, 255, 0.4), 0 0 40px rgba(100, 150, 255, 0.2);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(200, 220, 255, 0.95) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .info {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .face-list {
+                top: auto;
+                bottom: 20px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+                flex-direction: row;
+                max-width: 95%;
+                max-height: none;
+                padding: 8px 12px;
+            }
+            
+            .controls-panel {
+                display: none; /* Скрываем панель управления на мобильных */
+            }
+            
+            /* Кнопка сброса вверх вправо на мобильных */
+            #reset {
+                position: fixed !important;
+                top: 20px !important;
+                right: 20px !important;
+                bottom: auto !important;
+                left: auto !important;
+                transform: none !important;
+                z-index: 1000;
+            }
+            
+            /* Скрываем панель управления гранью на мобильных */
+            .face-controls-panel {
+                display: none !important;
+            }
+
+            .btn {
+                width: 48px;
+                height: 48px;
+                font-size: 20px;
+            }
+
+            .title {
+                font-size: 28px;
+                top: 16px;
+                letter-spacing: 2px;
+            }
+
+            .control-group {
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .controls-panel {
+                bottom: 8px;
+                padding: 8px 10px;
+                gap: 6px;
+            }
+
+            .btn {
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+            }
+
+            .title {
+                font-size: 22px;
+                top: 12px;
+                letter-spacing: 1.5px;
+            }
+        }
+
+        .separator {
+            display: none;
+        }
+
+        .hint-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 32px 40px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .hint-notification.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(100, 150, 255, 0.8) 0%, rgba(120, 170, 255, 0.9) 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+        }
+
+        .progress-percent {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-top: 12px;
+            font-weight: 300;
+        }
+
+        @media (max-width: 768px) {
+            .loading-text {
+                font-size: 20px;
+            }
+
+            .progress-bar-container {
+                width: 250px;
+            }
+        }
+
+        .hint-notification h3 {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .hint-notification p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .hint-notification .hint-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.8;
+        }
+
+        .hint-notification .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s ease;
+        }
+
+        .hint-notification .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .hint-notification {
+                padding: 24px 28px;
+                border-radius: 16px;
+            }
+
+            .hint-notification h3 {
+                font-size: 20px;
+                margin-bottom: 16px;
+            }
+
+            .hint-notification p {
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+
+            .hint-notification .hint-icon {
+                font-size: 36px;
+                margin-bottom: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="title">3D ТРИЗ</div>
+    <div id="canvas-container"></div>
+    
+    <div class="face-list" id="face-list"></div>
+    
+    <!-- Оверлей загрузки -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-text">Загрузка материалов..</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="progress-percent" id="progress-percent">0%</div>
+    </div>
+
+    <div class="controls-panel">
+        <button class="btn desktop-only" id="zoom-in" title="Приблизить">+</button>
+        <button class="btn desktop-only" id="zoom-out" title="Отдалить">−</button>
+        <button class="btn" id="reset" title="Сбросить вид">⟲</button>
+    </div>
+
+    <div class="face-controls-panel" id="face-controls-panel">
+        <span class="label desktop-only">Вращение грани:</span>
+        <button class="btn btn-face desktop-only" id="face-rotate-left" title="Вращать грань влево">↺</button>
+        <button class="btn btn-face desktop-only" id="face-rotate-right" title="Вращать грань вправо">↻</button>
+        <button class="btn btn-face" id="face-deselect" title="Снять выделение">✕</button>
+    </div>
+
+    <div class="texture-controls-panel" id="texture-controls-panel" style="position: fixed; top: 120px; left: 20px; background: rgba(30, 30, 40, 0.95); padding: 15px; border-radius: 8px; display: none !important; visibility: hidden; z-index: -1; color: white; font-size: 12px; border: 1px solid rgba(100, 150, 255, 0.3); max-width: 300px;">
+        <div style="margin-bottom: 10px; font-weight: bold;">Управление текстурой грани <span id="texture-face-number">1</span>:</div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Поворот:</span>
+            <button class="btn btn-face" id="texture-rotate-left" title="Повернуть текстуру влево">↺</button>
+            <button class="btn btn-face" id="texture-rotate-right" title="Повернуть текстуру вправо">↻</button>
+            <span id="texture-rotation-value" style="min-width: 60px; text-align: center;">0°</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Смещение X:</span>
+            <button class="btn btn-face" id="texture-offset-x-left" title="Сместить влево">←</button>
+            <button class="btn btn-face" id="texture-offset-x-right" title="Сместить вправо">→</button>
+            <span id="texture-offset-x-value" style="min-width: 60px; text-align: center;">0.00</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Смещение Y:</span>
+            <button class="btn btn-face" id="texture-offset-y-down" title="Сместить вниз">↓</button>
+            <button class="btn btn-face" id="texture-offset-y-up" title="Сместить вверх">↑</button>
+            <span id="texture-offset-y-value" style="min-width: 60px; text-align: center;">0.00</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Масштаб:</span>
+            <button class="btn btn-face" id="texture-scale-down" title="Уменьшить">−</button>
+            <button class="btn btn-face" id="texture-scale-up" title="Увеличить">+</button>
+            <span id="texture-scale-value" style="min-width: 60px; text-align: center;">1.00</span>
+        </div>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <button class="btn btn-face" id="texture-reset" style="width: 100%;">Сбросить</button>
+            <button class="btn btn-face" id="texture-copy-values" style="width: 100%; margin-top: 5px; background: #4CAF50;">Скопировать значения</button>
+        </div>
+        <div id="texture-values-output" style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px; font-family: monospace; font-size: 10px; word-break: break-all; max-height: 100px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="hint-notification" id="hint-notification" style="display: none !important;">
+        <button class="close-btn" id="close-hint">×</button>
+        <div class="hint-icon">🔄</div>
+        <h3>Как вращать модель</h3>
+        <p id="hint-text-desktop">Перетащите мышью по модели, чтобы вращать её</p>
+        <p id="hint-text-mobile" style="display: none;">Проведите пальцем по экрану, чтобы вращать модель</p>
+        <p style="font-size: 14px; opacity: 0.6; margin-top: 16px;">Используйте колесико мыши или жесты для масштабирования</p>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Инициализация сцены
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 0, 7); // Начальное расстояние увеличено для более отдаленного вида
+        camera.lookAt(0, 0, 0); // Явно указываем камере смотреть на центр сцены
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        
+        // Перехватываем ошибки WebGL
+        const gl = renderer.getContext();
+        const originalGetError = gl.getError;
+        let errorCount = 0;
+        gl.getError = function() {
+            const error = originalGetError.call(this);
+            if (error !== gl.NO_ERROR && errorCount < 10) { // Ограничиваем количество логов
+                errorCount++;
+                const errorNames = {
+                    [gl.NO_ERROR]: 'NO_ERROR',
+                    [gl.INVALID_ENUM]: 'INVALID_ENUM',
+                    [gl.INVALID_VALUE]: 'INVALID_VALUE',
+                    [gl.INVALID_OPERATION]: 'INVALID_OPERATION',
+                    [gl.INVALID_FRAMEBUFFER_OPERATION]: 'INVALID_FRAMEBUFFER_OPERATION',
+                    [gl.OUT_OF_MEMORY]: 'OUT_OF_MEMORY',
+                    [gl.CONTEXT_LOST_WEBGL]: 'CONTEXT_LOST_WEBGL'
+                };
+                const errorName = errorNames[error] || `UNKNOWN(${error})`;
+                console.error(`[WebGL Error ${errorCount}] ${errorName}`);
+            }
+            return error;
+        };
+        
+        // Перехватываем ошибки консоли
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            const errorStr = args.map(a => String(a)).join(' ');
+            if (errorStr.includes('SecurityError') || errorStr.includes('Tainted') || errorStr.includes('texImage2D') || errorStr.includes('GL_INVALID')) {
+            }
+        };
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        // Возвращаем исходный тёмный фон
+        // Полупрозрачный фон для видимости градиента
+        renderer.setClearColor(0x0a0a0f, 0.3);
+        renderer.shadowMap.enabled = false;
+        // Включаем tone mapping для более реалистичного вида
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+
+        // Глобальная ссылка на панель списка граней (инициализируется позже)
+        let faceListElement = null;
+        
+        const canvas = renderer.domElement;
+        canvas.style.display = 'block';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '1'; // Под UI элементами, но виден
+        
+        document.getElementById('canvas-container').appendChild(canvas);
+        
+        
+        console.log('Рендерер инициализирован, размер:', window.innerWidth, 'x', window.innerHeight);
+        console.log('Canvas элемент:', canvas);
+        console.log('Canvas размеры:', canvas.width, 'x', canvas.height);
+        
+        // Детальная проверка canvas
+        setTimeout(() => {
+            const canvasStyle = window.getComputedStyle(canvas);
+            const containerStyle = window.getComputedStyle(document.getElementById('canvas-container'));
+            console.log('=== ДИАГНОСТИКА CANVAS ===');
+            console.log('Canvas в DOM:', document.getElementById('canvas-container').contains(canvas));
+            console.log('Canvas display:', canvasStyle.display);
+            console.log('Canvas visibility:', canvasStyle.visibility);
+            console.log('Canvas opacity:', canvasStyle.opacity);
+            console.log('Canvas z-index:', canvasStyle.zIndex);
+            console.log('Canvas position:', canvasStyle.position);
+            console.log('Canvas top:', canvasStyle.top);
+            console.log('Canvas left:', canvasStyle.left);
+            console.log('Canvas width:', canvasStyle.width);
+            console.log('Canvas height:', canvasStyle.height);
+            console.log('Container width:', containerStyle.width);
+            console.log('Container height:', containerStyle.height);
+            console.log('Container position:', containerStyle.position);
+            console.log('Container z-index:', containerStyle.zIndex);
+            
+            // Проверка WebGL контекста
+            const gl = renderer.getContext();
+            console.log('WebGL контекст:', gl ? 'есть' : 'нет');
+            if (gl) {
+                console.log('WebGL версия:', gl.getParameter(gl.VERSION));
+                console.log('WebGL vendor:', gl.getParameter(gl.VENDOR));
+                console.log('WebGL renderer:', gl.getParameter(gl.RENDERER));
+            }
+        }, 100);
+
+        // Освещение для красивых светотеней
+        // Мягкое общее освещение (ambient) - создает базовую видимость
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+        scene.add(ambientLight);
+
+        // Основной направленный свет (ключевой свет) - сверху слева
+        // Создает основные тени и объем
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(6, 10, 4);
+        mainLight.castShadow = false;
+        // Добавляем легкий цветовой оттенок для теплоты
+        mainLight.color.setHex(0xfff8f0);
+        scene.add(mainLight);
+
+        // Заполняющий свет (fill light) - снизу справа
+        // Мягко заполняет тени, не создавая плоского вида
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        fillLight.position.set(-4, -3, -5);
+        fillLight.castShadow = false;
+        // Легкий холодный оттенок для контраста
+        fillLight.color.setHex(0xe0f0ff);
+        scene.add(fillLight);
+
+        // Римский свет (rim light) - сзади для контура
+        // Подчеркивает края фигуры, добавляет глубину
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        rimLight.position.set(-2, 2, -8);
+        rimLight.castShadow = false;
+        rimLight.color.setHex(0xb8d4ff);
+        scene.add(rimLight);
+        
+        // Дополнительный точечный свет для акцентов
+        const accentLight = new THREE.PointLight(0xffffff, 0.6);
+        accentLight.position.set(0, 8, 0);
+        accentLight.castShadow = false;
+        accentLight.color.setHex(0xffffff);
+        scene.add(accentLight);
+        
+        console.log('Освещение добавлено в сцену');
+
+        // Создание додекаэдра
+        const geometry = new THREE.DodecahedronGeometry(1, 0);
+        console.log('Геометрия додекаэдра создана:', geometry);
+        const materials = [];
+        
+        // Функция создания белой текстуры с номером грани
+        function createNumberedTexture(faceNumber) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Белый фон
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Черный номер грани - уменьшенный размер для правильного отображения
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 180px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Рисуем номер в центре, зеркально по горизонтали,
+            // чтобы снаружи модели текст был НЕ зеркальный
+            ctx.save();
+            ctx.translate(512, 0);
+            ctx.scale(-1, 1);
+            ctx.fillText(faceNumber.toString(), 256, 256);
+            ctx.restore();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.flipY = false; // Важно для правильной ориентации
+            return texture;
+        }
+        
+        // Функция создания заглушки текстуры
+        function createPlaceholderTexture(filename) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.font = 'bold 64px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(filename.replace('.jpg', ''), 256, 256);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+        
+        // Функция загрузки изображения с обработкой CORS
+        function loadImageAsTexture(filename) {
+            return new Promise((resolve, reject) => {
+                
+                const textureLoader = new THREE.TextureLoader();
+                
+                // Для file:// протокола пробуем сначала локальные пути
+                const isFileProtocolLocal = window.location.protocol === 'file:';
+                let texturePath = filename;
+                
+                if (isFileProtocolLocal) {
+                    // Для file:// формируем полный путь к файлу
+                    const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                    texturePath = `${currentDir}${filename}`;
+                    console.log(`[file://] Пробуем загрузить через TextureLoader: ${texturePath}`);
+                }
+                
+                // Пробуем загрузить через TextureLoader
+                textureLoader.load(
+                    texturePath,
+                    (texture) => {
+                        
+                        // Настраиваем текстуру для правильного отображения
+                        texture.wrapS = THREE.ClampToEdgeWrapping;
+                        texture.wrapT = THREE.ClampToEdgeWrapping;
+                        texture.flipY = false;
+                        texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                        texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                        texture.magFilter = THREE.LinearFilter;
+                        // Зеркальное отражение текстуры по горизонтали
+                        texture.offset.set(1, 0);
+                        texture.repeat.set(-1, 1);
+                        texture.center.set(0.5, 0.5);
+                        resolve(texture);
+                    },
+                    undefined,
+                    (error) => {
+                        
+                        // Если не удалось, пробуем через Image и Canvas
+                        const img = new Image();
+                        
+                        // Для file:// протокола не используем crossOrigin, чтобы избежать CORS ошибок
+                        const isFileProtocolLocal = window.location.protocol === 'file:';
+                        if (!isFileProtocolLocal) {
+                            img.crossOrigin = 'anonymous';
+                        }
+                        
+                        img.onload = function() {
+                            
+                            // Для file:// протокола используем Image напрямую через Texture
+                            // чтобы избежать проблем с "tainted canvas"
+                            if (isFileProtocolLocal) {
+                                // Создаем текстуру напрямую из изображения
+                                const texture = new THREE.Texture(img);
+                                texture.wrapS = THREE.ClampToEdgeWrapping;
+                                texture.wrapT = THREE.ClampToEdgeWrapping;
+                                texture.flipY = false;
+                                texture.needsUpdate = true;
+                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                                texture.magFilter = THREE.LinearFilter;
+                                // Зеркальное отражение текстуры по горизонтали
+                                texture.offset.set(1, 0);
+                                texture.repeat.set(-1, 1);
+                                texture.center.set(0.5, 0.5);
+                                resolve(texture);
+                            } else {
+                                // Для HTTP используем Canvas (может быть нужно для CORS)
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                
+                                const texture = new THREE.CanvasTexture(canvas);
+                                texture.wrapS = THREE.ClampToEdgeWrapping;
+                                texture.wrapT = THREE.ClampToEdgeWrapping;
+                                texture.flipY = false;
+                                texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                                texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                                texture.magFilter = THREE.LinearFilter;
+                                // Зеркальное отражение текстуры по горизонтали
+                                texture.offset.set(1, 0);
+                                texture.repeat.set(-1, 1);
+                                texture.center.set(0.5, 0.5);
+                                resolve(texture);
+                            }
+                        };
+                        
+                        img.onerror = function() {
+                            
+                            // Создаем заглушку
+                            resolve(createPlaceholderTexture(filename));
+                        };
+                        
+                        // Пробуем разные пути, включая GitHub raw URLs и локальные файлы
+                        const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+                        const origin = window.location.origin;
+                        const pathParts = window.location.pathname.split('/').filter(p => p);
+                        
+                        // Формируем пути для загрузки
+                        const paths = [];
+                        
+                        if (isFileProtocolLocal) {
+                            // Для file:// протокола пробуем локальные пути
+                            const currentDir = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+                            paths.push(
+                                filename, // Относительный путь
+                                `./${filename}`, // Текущая директория
+                                `${currentDir}${filename}`, // Полный путь к файлу
+                                `${basePath}/${filename}`, // Относительно basePath
+                                `${origin}${basePath}/${filename}` // С протоколом file://
+                            );
+                            console.log(`[file://] Пробуем загрузить ${filename} из директории: ${currentDir}`);
+                        } else {
+                            // Для HTTP/HTTPS протоколов
+                            paths.push(
+                                filename, // Относительный путь
+                                `./${filename}`, // Текущая директория
+                                `${basePath}/${filename}`, // Относительно basePath
+                                `${origin}${basePath}/${filename}` // Полный путь для GitHub Pages
+                            );
+                        }
+                        
+                        // Если это GitHub Pages, добавляем путь к raw content
+                        if (origin.includes('github.io') && pathParts.length >= 2) {
+                            const user = pathParts[0];
+                            const repo = pathParts[1];
+                            // Пробуем разные ветки GitHub
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
+                            paths.push(`https://raw.githubusercontent.com/${user}/${repo}/gh-pages/${filename}`);
+                            // Также пробуем через GitHub Pages напрямую
+                            paths.push(`https://${user}.github.io/${repo}/${filename}`);
+                        }
+                        
+                        // Если это обычный GitHub репозиторий (не Pages), пробуем raw content
+                        if (origin.includes('github.com') && !origin.includes('github.io')) {
+                            const urlParts = window.location.href.split('/');
+                            const userIndex = urlParts.findIndex(p => p.includes('github.com')) + 1;
+                            if (userIndex > 0 && urlParts[userIndex + 1]) {
+                                const user = urlParts[userIndex];
+                                const repo = urlParts[userIndex + 1];
+                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${filename}`);
+                                paths.push(`https://raw.githubusercontent.com/${user}/${repo}/master/${filename}`);
+                            }
+                        }
+                        
+                        
+                        let pathIndex = 0;
+                        const tryNextPath = () => {
+                            if (pathIndex < paths.length) {
+                                const currentPath = paths[pathIndex++];
+                                console.log(`[${isFileProtocolLocal ? 'file://' : 'http'}] Пробуем загрузить ${filename} по пути: ${currentPath}`);
+                                img.src = currentPath;
+                            } else {
+                                console.error(`[${isFileProtocolLocal ? 'file://' : 'http'}] Все пути для ${filename} исчерпаны, создаем заглушку`);
+                                img.onerror();
+                            }
+                        };
+                        
+                        const originalError = img.onerror;
+                        img.onerror = function() {
+                            if (pathIndex < paths.length) {
+                                tryNextPath();
+                            } else {
+                                originalError.call(this);
+                            }
+                        };
+                        
+                        tryNextPath();
+                    }
+                );
+            });
+        }
+        
+        // Создаем додекаэдр с одним материалом для проверки
+        const testMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ff00, // Яркий зеленый для максимальной видимости
+            side: THREE.DoubleSide,
+            transparent: false,
+            opacity: 1.0
+        });
+        
+        const dodecahedron = new THREE.Mesh(geometry, testMaterial);
+        dodecahedron.position.set(0, 0, 0);
+        dodecahedron.scale.set(3, 3, 3);
+        dodecahedron.visible = false; // Скрываем до загрузки всех текстур
+        scene.add(dodecahedron);
+        
+        // Обновляем матрицу после установки scale
+        dodecahedron.updateMatrix();
+        dodecahedron.updateMatrixWorld();
+        
+        // Создаем материалы для каждой грани (для будущего использования с текстурами)
+        const basicMaterials = [];
+        for (let i = 0; i < 12; i++) {
+            basicMaterials.push(new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0
+            }));
+        }
+        
+        // Тестовые объекты удалены - додекаэдр работает
+        console.log('Додекаэдр scale после установки:', dodecahedron.scale);
+        console.log('Додекаэдр создан с зеленым материалом для теста');
+        console.log('Всего объектов в сцене:', scene.children.length);
+        
+        
+        // Сохраняем ссылку на додекаэдр для управления
+        window.dodecahedron = dodecahedron;
+        window.dodecahedronMaterials = basicMaterials; // Сохраняем для будущего использования
+        window.dodecahedronGeometry = geometry;
+        
+        console.log('Додекаэдр создан и добавлен в сцену');
+        console.log('Додекаэдр в сцене:', scene.children.includes(dodecahedron));
+        console.log('Позиция додекаэдра:', dodecahedron.position);
+        console.log('Позиция камеры:', camera.position);
+        console.log('Количество детей в сцене:', scene.children.length);
+        console.log('Материалы додекаэдра:', dodecahedron.material);
+        
+        // Детальная диагностика
+        console.log('=== ДИАГНОСТИКА ВИДИМОСТИ ===');
+        console.log('Додекаэдр visible:', dodecahedron.visible);
+        console.log('Додекаэдр scale:', dodecahedron.scale);
+        const currentMaterial = Array.isArray(dodecahedron.material) ? dodecahedron.material[0] : dodecahedron.material;
+        console.log('Тип материала:', currentMaterial?.type);
+        console.log('Цвет материала:', currentMaterial?.color?.getHex());
+        console.log('Материал visible:', currentMaterial?.visible);
+        console.log('Материал transparent:', currentMaterial?.transparent);
+        console.log('Материал opacity:', currentMaterial?.opacity);
+        const verticesCount = geometry.attributes?.position ? geometry.attributes.position.count / 3 : (geometry.vertices?.length || 0);
+        const facesCount = geometry.index ? geometry.index.count / 3 : (geometry.faces?.length || verticesCount / 3);
+        console.log('Геометрия vertices:', verticesCount);
+        console.log('Геометрия faces:', facesCount);
+        console.log('Тип геометрии:', geometry.type);
+        
+        // Проверка видимости в frustum
+        const frustum = new THREE.Frustum();
+        camera.updateMatrixWorld();
+        const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(matrix);
+        console.log('Додекаэдр в frustum камеры:', frustum.intersectsObject(dodecahedron));
+        
+        // Bounding box
+        const bbox = new THREE.Box3().setFromObject(dodecahedron);
+        const bboxCenter = bbox.getCenter(new THREE.Vector3());
+        const bboxSize = bbox.getSize(new THREE.Vector3());
+        console.log('Bounding box min:', bbox.min.x, bbox.min.y, bbox.min.z);
+        console.log('Bounding box max:', bbox.max.x, bbox.max.y, bbox.max.z);
+        console.log('Bounding box center:', bboxCenter.x, bboxCenter.y, bboxCenter.z);
+        console.log('Bounding box size:', bboxSize.x, bboxSize.y, bboxSize.z);
+        console.log('Расстояние от камеры до центра:', camera.position.distanceTo(bboxCenter));
+        console.log('Камера смотрит на:', camera.getWorldDirection(new THREE.Vector3()));
+        
+        // Проверка видимости в экранных координатах
+        const vector = new THREE.Vector3();
+        dodecahedron.getWorldPosition(vector);
+        vector.project(camera);
+        console.log('Додекаэдр в экранных координатах:', 
+            (vector.x * 0.5 + 0.5) * window.innerWidth, 
+            (vector.y * -0.5 + 0.5) * window.innerHeight);
+        
+        // Проверяем протокол - для file:// нужен локальный сервер
+        const isFileProtocol = window.location.protocol === 'file:';
+        if (isFileProtocol) {
+            console.warn('⚠️ Файл открыт через file:// протокол. Для загрузки изображений используйте локальный HTTP сервер:');
+            console.warn('   Python: python -m http.server 8000');
+            console.warn('   Node.js: npx http-server');
+            console.warn('   Затем откройте http://localhost:8000');
+        }
+        
+        // Элементы прогресс-бара
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        // Функция обновления прогресса
+        function updateProgress(loaded, total) {
+            const percent = Math.round((loaded / total) * 100);
+            progressBar.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+        }
+        
+        // Объявляем массив ориентаций граней (будет заполнен при формировании граней)
+        // Делаем глобальным для доступа из функций управления текстурами
+        window.faceOrientations = [];
+        const faceOrientations = window.faceOrientations;
+        for (let i = 0; i < 12; i++) {
+            faceOrientations.push({ rotation: 0, flipX: false, flipY: false });
+        }
+        
+        // Загрузка реальных изображений для всех 12 граней
+        const textures = [];
+        const texturePromises = [];
+        // Инициализируем настройки текстур до загрузки
+        if (!window.textureSettings) {
+            window.textureSettings = {};
+        }
+        // Применяем настроенные значения для всех граней
+        window.textureSettings[0] = { rotation: -1.570796, offsetX: -0.960000, offsetY: 0.080000, scale: 1.000000 }; // Грань 1
+        window.textureSettings[1] = { rotation: -1.535890, offsetX: -0.990000, offsetY: 0.000000, scale: 1.000000 }; // Грань 2
+        window.textureSettings[2] = { rotation: -1.518436, offsetX: -1.060000, offsetY: 0.030000, scale: 1.000000 }; // Грань 3
+        window.textureSettings[3] = { rotation: -1.535890, offsetX: -0.960000, offsetY: 0.020000, scale: 1.000000 }; // Грань 4
+        window.textureSettings[4] = { rotation: -0.296706, offsetX: -1.030000, offsetY: 0.080000, scale: 1.000000 }; // Грань 5
+        window.textureSettings[5] = { rotation: -0.279253, offsetX: -1.030000, offsetY: 0.090000, scale: 1.000000 }; // Грань 6
+        window.textureSettings[6] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 7
+        window.textureSettings[7] = { rotation: -1.535890, offsetX: -1.040000, offsetY: 0.020000, scale: 1.000000 }; // Грань 8
+        window.textureSettings[8] = { rotation: -1.535890, offsetX: -1.000000, offsetY: 0.000000, scale: 1.000000 }; // Грань 9
+        window.textureSettings[9] = { rotation: -1.535890, offsetX: -0.950000, offsetY: 0.030000, scale: 1.000000 }; // Грань 10
+        window.textureSettings[10] = { rotation: -2.827433, offsetX: -0.950000, offsetY: 0.100000, scale: 1.000000 }; // Грань 11
+        window.textureSettings[11] = { rotation: -1.535890, offsetX: -0.990000, offsetY: -0.010000, scale: 1.000000 }; // Грань 12
+        
+        let loadedCount = 0;
+        const totalTextures = 12;
+        
+        for (let i = 1; i <= 12; i++) {
+            const filename = `${String(i).padStart(3, '0')}.png`;
+            texturePromises.push(
+                loadImageAsTexture(filename).then(texture => {
+                    
+                    // Проверяем, не является ли это заглушкой
+                    const isPlaceholder = texture.image && texture.image.width === 512 && texture.image.height === 512;
+                    if (isPlaceholder) {
+                        console.warn(`⚠ Текстура ${filename} не загрузилась, используется заглушка`);
+                    }
+                    
+                    // Настраиваем текстуру для правильного отображения пятиугольника
+                    // Изображение 2000x2000, пятиугольник с прозрачным фоном
+                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                    texture.flipY = false; // Важно для правильной ориентации
+                    texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
+                    texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
+                    texture.magFilter = THREE.LinearFilter;
+                    
+                    // Зеркальное отражение текстуры по горизонтали
+                    texture.offset.set(1, 0);
+                    texture.repeat.set(-1, 1);
+                    texture.center.set(0.5, 0.5);
+                    
+                    // Включаем прозрачность для PNG с альфа-каналом
+                    if (texture.image && texture.image.complete) {
+                        // Текстура уже загружена
+                    }
+                    
+                    textures[i - 1] = texture;
+                    loadedCount++;
+                    updateProgress(loadedCount, totalTextures);
+                    console.log(`✓ Текстура ${filename} загружена успешно (${loadedCount}/${totalTextures})${isPlaceholder ? ' [ЗАГЛУШКА]' : ''} - размер: ${texture.image?.width}x${texture.image?.height}`);
+                    return texture;
+                }).catch(err => {
+                    
+                    console.warn(`⚠ Не удалось загрузить ${filename}, используем заглушку:`, err);
+                    // Используем пронумерованную текстуру как заглушку
+                    const placeholder = createNumberedTexture(i);
+                    textures[i - 1] = placeholder;
+                    loadedCount++;
+                    updateProgress(loadedCount, totalTextures);
+                    return placeholder;
+                })
+            );
+        }
+        
+        // Ждем загрузки всех текстур
+        Promise.all(texturePromises).then(() => {
+            console.log('Все текстуры загружены:', textures.length);
+            
+            // Создаем материалы с текстурами для каждой грани
+            // НОВАЯ ЛОГИКА: Применяем текстуру 2000x2000 с правильной ориентацией из faceOrientations
+            const newMaterials = [];
+            for (let i = 0; i < 12; i++) {
+                const texture = textures[i];
+                const orientation = faceOrientations[i] || { rotation: 0, flipX: false, flipY: false };
+                
+                // Убеждаемся, что настройки текстур применены (на случай если они были перезаписаны)
+                if (texture) {
+                    texture.generateMipmaps = false;
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                    texture.needsUpdate = true;
+                    
+                    // Применяем текстуру с зеркальным отражением
+                    // Сбрасываем все трансформации
+                    texture.offset.set(0, 0);
+                    texture.repeat.set(1, 1);
+                    texture.center.set(0.5, 0.5);
+                    texture.rotation = 0;
+                    
+                    // Зеркальное отражение по горизонтали
+                    texture.offset.x = 1;
+                    texture.repeat.x = -1;
+                    
+                    // Применяем ручные настройки текстуры (для тестирования)
+                    // Эти значения можно изменять через панель управления
+                    const textureSettings = window.textureSettings || {};
+                    const faceSettings = textureSettings[i] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                    
+                    // Применяем масштаб (через repeat)
+                    const scale = faceSettings.scale || 1.0;
+                    texture.repeat.set(-1 / scale, 1 / scale);
+                    
+                    // Применяем поворот (базовый + ручной)
+                    texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
+                    
+                    // Применяем смещение
+                    texture.offset.x = 1 + faceSettings.offsetX;
+                    texture.offset.y = faceSettings.offsetY;
+                    
+                    // Убеждаемся, что текстура обновится
+                    texture.needsUpdate = true;
+                    
+                }
+                
+                // Включаем прозрачность для PNG с альфа-каналом
+                // Используем MeshStandardMaterial для поддержки освещения и красивых светотеней
+                newMaterials.push(new THREE.MeshStandardMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true, // Включаем прозрачность для PNG
+                    opacity: 1.0,
+                    alphaTest: 0.0, // Низкий порог для корректного отображения прозрачности
+                    metalness: 0.05, // Легкий металлический отблеск
+                    roughness: 0.85, // Матовая поверхность для мягких теней
+                    emissive: 0x000000, // Без свечения
+                    emissiveIntensity: 0.0
+                }));
+            }
+            
+            // Применяем массив материалов
+            if (window.dodecahedron) {
+                window.dodecahedron.material = newMaterials;
+                window.dodecahedronMaterials = newMaterials;
+                console.log('Реальные текстуры применены к додекаэдру');
+                
+                // Показываем модель и скрываем прогресс-бар
+                window.dodecahedron.visible = true;
+                setTimeout(() => {
+                    loadingOverlay.classList.add('hidden');
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                    }, 500);
+                }, 300);
+            }
+        });
+        
+        // Временно создаем материалы с пронумерованными текстурами для отображения до загрузки
+        const newMaterials = [];
+        for (let i = 0; i < 12; i++) {
+            const tempTexture = createNumberedTexture(i + 1);
+            tempTexture.offset.set(0, 0);
+            tempTexture.repeat.set(1, 1);
+            tempTexture.center.set(0.5, 0.5);
+            
+            newMaterials.push(new THREE.MeshStandardMaterial({
+                map: tempTexture,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1.0,
+                metalness: 0.1,
+                roughness: 0.7
+            }));
+        }
+            
+            // Проверяем структуру геометрии
+            // DodecahedronGeometry: 12 граней, каждая грань - пентагон (5 вершин = 3 треугольника = 9 индексов)
+            const hasIndex = geometry.index !== null && geometry.index !== undefined;
+            const totalIndices = hasIndex ? geometry.index.count : 108; // 12 граней * 9 индексов = 108
+            const totalFaces = totalIndices / 3; // 36 треугольников
+            const facesPerGroup = 3; // 3 треугольника на грань (пентагон)
+            const indicesPerGroup = 9; // 3 треугольника * 3 индекса = 9
+            
+            console.log('=== ДИАГНОСТИКА ГЕОМЕТРИИ ===');
+            console.log('geometry.index существует:', hasIndex);
+            console.log('Всего индексов:', totalIndices);
+            console.log('Всего граней (треугольников):', totalFaces);
+            console.log('Граней на группу:', facesPerGroup);
+            console.log('Индексов на группу:', indicesPerGroup);
+            console.log('Существующие groups:', geometry.groups?.length || 0);
+            if (geometry.groups && geometry.groups.length > 0) {
+                console.log('Первые 3 groups:', geometry.groups.slice(0, 3));
+            }
+            
+            
+            // Если индексный массив отсутствует, создаем его
+            // В неиндексированной геометрии каждая вершина используется только один раз
+            // Поэтому индексный массив будет последовательным: [0, 1, 2, 3, ...]
+            if (!hasIndex) {
+                console.log('Создаем индексный массив для геометрии...');
+                const positions = geometry.attributes.position;
+                const vertexCount = positions.count;
+                const indexArray = new Uint16Array(vertexCount);
+                for (let i = 0; i < vertexCount; i++) {
+                    indexArray[i] = i;
+                }
+                geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
+                console.log('Индексный массив создан:', vertexCount, 'индексов');
+                
+            }
+            
+            // Создаем или обновляем groups для каждой грани
+            // Всегда пересоздаем groups для гарантии правильного порядка
+            geometry.groups = [];
+            for (let i = 0; i < 12; i++) {
+                geometry.groups.push({
+                    start: i * indicesPerGroup,
+                    count: indicesPerGroup,
+                    materialIndex: i
+                });
+            }
+            console.log('Groups созданы/обновлены для додекаэдра:', geometry.groups.length, 'групп');
+            console.log('Первые 3 groups:', geometry.groups.slice(0, 3).map(g => ({start: g.start, count: g.count, materialIndex: g.materialIndex})));
+            
+            
+            // Пересчитываем UV-координаты для правильного центрирования текстур на каждой грани
+            const positions = geometry.attributes.position;
+            // В Three.js r128 index может быть null, но геометрия все равно работает
+            // Проверяем наличие index более тщательно
+            const indices = geometry.index;
+            // Проверяем разными способами
+            const hasIndexForUV = indices !== null && indices !== undefined && (indices.count !== undefined ? indices.count > 0 : false);
+            
+            // Дополнительная проверка: может быть index есть, но count равен 0 или undefined
+            console.log('Детальная проверка geometry.index:');
+            console.log('  geometry.index:', indices);
+            console.log('  typeof geometry.index:', typeof indices);
+            console.log('  geometry.index !== null:', indices !== null);
+            console.log('  geometry.index !== undefined:', indices !== undefined);
+            if (indices) {
+                console.log('  indices.count:', indices.count);
+                console.log('  indices.isBufferAttribute:', indices instanceof THREE.BufferAttribute);
+            }
+            
+            console.log('=== ПЕРЕСЧЕТ UV-КООРДИНАТ ===');
+            console.log('positions существует:', !!positions);
+            console.log('indices существует:', hasIndexForUV);
+            if (positions) console.log('positions.count:', positions.count);
+            if (hasIndexForUV) console.log('indices.count:', indices.count);
+            console.log('geometry.index:', geometry.index);
+            console.log('geometry.attributes.uv существует:', !!geometry.attributes.uv);
+            
+            
+            if (!positions) {
+                console.warn('Не удалось получить позиции для пересчета UV');
+            } else if (!hasIndexForUV) {
+                // Если индексов нет, но есть UV, пересчитываем их на основе positions и groups
+                // Используем упрощенный подход: для каждой группы находим вершины по близости
+                console.log('Индексы отсутствуют, пересчитываем UV на основе positions и groups');
+                
+                let uv = geometry.attributes.uv;
+                if (!uv) {
+                    uv = new THREE.BufferAttribute(new Float32Array(positions.count * 2), 2);
+                    geometry.setAttribute('uv', uv);
+                    console.log('UV-атрибут создан');
+                }
+                
+                // Для каждой группы находим вершины, которые могут принадлежать этой грани
+                // Используем упрощенный подход: группируем вершины по близости к центру группы
+                for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
+                    const group = geometry.groups[groupIndex];
+                    
+                    // Вычисляем примерный центр группы на основе start позиции
+                    // В DodecahedronGeometry каждая грань имеет примерно 5 вершин
+                    // Используем упрощенный подход: для каждой группы находим вершины по близости
+                    
+                    // Вычисляем центр группы на основе примерных позиций вершин
+                    // Каждая группа имеет start и count, но без индексов сложно определить вершины
+                    // Используем упрощенный подход: для каждой группы устанавливаем центрированные UV
+                    // для вершин, которые могут принадлежать этой грани
+                    
+                    // Простой подход: для каждой группы устанавливаем UV в центр (0.5, 0.5)
+                    // для всех вершин, которые могут быть связаны с этой группой
+                    // Но это не идеально, поэтому используем другой метод
+                    
+                    // Альтернативный подход: используем существующие UV, но масштабируем их для центрирования
+                    // Для каждой группы находим вершины по близости к центру группы
+                }
+                
+                // Используем существующие UV из геометрии, если они есть
+                // Если их нет, устанавливаем все UV в центрированные значения
+                if (geometry.attributes.uv && geometry.attributes.uv.count === positions.count) {
+                    console.log('Используем существующие UV-координаты из геометрии');
+                    // UV уже есть, не трогаем их
+                } else {
+                    // Упрощенный подход: устанавливаем все UV в центрированные значения
+                    for (let i = 0; i < positions.count; i++) {
+                        uv.setXY(i, 0.5, 0.5);
+                    }
+                    uv.needsUpdate = true;
+                    console.log('UV-координаты установлены в центр для всех вершин (упрощенный подход)');
+                }
+            } else {
+                // НОВЫЙ ПРОСТОЙ ПОДХОД: Используем стандартные UV из геометрии или создаем простые UV [0,1]
+                // для каждой грани, чтобы текстура покрывала всю грань
+                
+                let uv = geometry.attributes.uv;
+                
+                if (!uv) {
+                    const uvCount = positions.count;
+                    uv = new THREE.BufferAttribute(new Float32Array(uvCount * 2), 2);
+                    geometry.setAttribute('uv', uv);
+                    console.log('UV-атрибут создан');
+                }
+                
+                // Для каждой грани устанавливаем простые UV-координаты [0,1]
+                // чтобы текстура покрывала всю грань
+                for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
+                    const group = geometry.groups[groupIndex];
+                    
+                    // Собираем все уникальные индексы вершин для этой грани
+                    const vertexSet = new Set();
+                    
+                    for (let i = 0; i < group.count; i++) {
+                        const indexPos = group.start + i;
+                        if (indexPos < indices.count) {
+                            const vertexIndex = indices.getX(indexPos);
+                                vertexSet.add(vertexIndex);
+                        }
+                    }
+                    
+                    // Получаем вершины грани для вычисления ориентации
+                    const vertexIndices = Array.from(vertexSet);
+                    if (vertexIndices.length < 3) continue;
+                    
+                    const vertices = vertexIndices.map(idx => new THREE.Vector3(
+                        positions.getX(idx),
+                        positions.getY(idx),
+                        positions.getZ(idx)
+                    ));
+                    
+                    // Вычисляем нормаль и центр грани для ориентации
+                    const v0 = vertices[0];
+                    const v1 = vertices[1];
+                    const v2 = vertices[2];
+                    let normal = new THREE.Vector3()
+                        .subVectors(v1, v0)
+                        .cross(new THREE.Vector3().subVectors(v2, v0))
+                        .normalize();
+                    
+                    const center = new THREE.Vector3();
+                    vertices.forEach(v => center.add(v));
+                    center.divideScalar(vertices.length);
+                    
+                    const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), center);
+                    if (normal.dot(toCenter) > 0) {
+                        normal.negate();
+                    }
+                    
+                    // УЛУЧШЕННАЯ ЛОГИКА: Находим правильную ориентацию пятиугольника
+                    // Создаем локальную систему координат на грани
+                    const worldUp = new THREE.Vector3(0, 1, 0);
+                    let right = new THREE.Vector3().crossVectors(worldUp, normal).normalize();
+                    if (right.length() < 0.1) {
+                        const worldRight = new THREE.Vector3(1, 0, 0);
+                        right = new THREE.Vector3().crossVectors(worldRight, normal).normalize();
+                    }
+                    const forward = new THREE.Vector3().crossVectors(normal, right).normalize();
+                    
+                    // Находим верхнюю вершину (с максимальным Y в мировых координатах)
+                    // Это вершина, которая должна быть вверху текстуры
+                    let topVertexIndex = 0;
+                    let maxY = vertices[0].y;
+                    for (let i = 1; i < vertices.length; i++) {
+                        if (vertices[i].y > maxY) {
+                            maxY = vertices[i].y;
+                            topVertexIndex = i;
+                        }
+                    }
+                    
+                    const topVertex = vertices[topVertexIndex];
+                    const toTop = new THREE.Vector3().subVectors(topVertex, center).normalize();
+                    
+                    // Проецируем направление к верхней вершине на плоскость грани
+                    const componentAlongNormal = toTop.dot(normal);
+                    const toTopInPlane = new THREE.Vector3()
+                        .subVectors(toTop, normal.clone().multiplyScalar(componentAlongNormal));
+                    
+                    if (toTopInPlane.length() < 0.0001) {
+                        toTopInPlane.copy(forward);
+                    } else {
+                        toTopInPlane.normalize();
+                    }
+                    
+                    // Вычисляем угол поворота текстуры
+                    // Направление "вверх" в UV координатах соответствует направлению -forward
+                    // (так как в UV Y растет вниз)
+                    // Угол между toTopInPlane и -forward в плоскости грани
+                    const dotUp = toTopInPlane.dot(forward);
+                    const dotRight = toTopInPlane.dot(right);
+                    let faceRotation = Math.atan2(dotUp, dotRight);
+                    
+                    // Корректируем угол: в UV координатах Y растет вниз,
+                    // поэтому нужно повернуть на 180 градусов, чтобы верхняя вершина была вверху
+                    faceRotation += Math.PI;
+                    
+                    // Нормализуем угол к диапазону [-PI, PI]
+                    while (faceRotation > Math.PI) faceRotation -= 2 * Math.PI;
+                    while (faceRotation < -Math.PI) faceRotation += 2 * Math.PI;
+                    
+                    // Проверяем, что угол валиден
+                    if (isNaN(faceRotation) || !isFinite(faceRotation)) {
+                        faceRotation = 0;
+                    }
+                    
+                    console.log(`Грань ${groupIndex + 1}: угол поворота = ${(faceRotation * 180 / Math.PI).toFixed(1)}°`);
+                    
+                    // Сохраняем ориентацию
+                    faceOrientations[groupIndex] = {
+                        rotation: faceRotation,
+                        flipX: false,
+                        flipY: false
+                    };
+                    
+                    // ПРОСТОЙ ПОДХОД: Устанавливаем UV [0,1] для всех вершин грани
+                    // Используем простую проекцию: каждая вершина получает UV на основе её позиции
+                    // относительно центра грани в локальной системе координат
+                    let minU = Infinity, maxU = -Infinity;
+                    let minV = Infinity, maxV = -Infinity;
+                    const vertexUVMap = new Map();
+                    
+                    vertexIndices.forEach((vertexIndex, idx) => {
+                        const vertex = vertices[idx];
+                        const localPos = new THREE.Vector3().subVectors(vertex, center);
+                        const u = localPos.dot(right);
+                        const v = localPos.dot(forward);
+                        vertexUVMap.set(vertexIndex, { u, v });
+                        minU = Math.min(minU, u);
+                        maxU = Math.max(maxU, u);
+                        minV = Math.min(minV, v);
+                        maxV = Math.max(maxV, v);
+                    });
+                    
+                    const rangeU = maxU - minU || 1;
+                    const rangeV = maxV - minV || 1;
+                    
+                    // Применяем UV ко всем индексам в группе
+                    for (let i = 0; i < group.count; i++) {
+                        const indexPos = group.start + i;
+                        if (indexPos < indices.count) {
+                            const vertexIndex = indices.getX(indexPos);
+                            const uvData = vertexUVMap.get(vertexIndex);
+                            
+                            if (uvData) {
+                                // Простая нормализация к [0, 1]
+                                const normalizedU = rangeU > 0 ? (uvData.u - minU) / rangeU : 0.5;
+                                const normalizedV = rangeV > 0 ? (uvData.v - minV) / rangeV : 0.5;
+                                
+                        uv.setXY(vertexIndex, normalizedU, normalizedV);
+                            }
+                        }
+                    }
+                }
+                
+                uv.needsUpdate = true;
+                console.log('UV-координаты установлены для всех граней (простой подход)');
+                console.log('Количество обработанных групп:', geometry.groups.length);
+                
+            }
+            
+            // Применяем массив материалов
+            window.dodecahedron.material = newMaterials;
+            window.dodecahedronMaterials = newMaterials;
+            
+            // Проверяем, что materials и groups правильно связаны
+            console.log('=== ПРОВЕРКА ПРИМЕНЕНИЯ МАТЕРИАЛОВ ===');
+            console.log('Количество материалов:', newMaterials.length);
+            console.log('Количество groups:', geometry.groups.length);
+            console.log('Groups с materialIndex:');
+            geometry.groups.forEach((group, i) => {
+                console.log(`  Group ${i}: start=${group.start}, count=${group.count}, materialIndex=${group.materialIndex}`);
+                if (group.materialIndex >= 0 && group.materialIndex < newMaterials.length) {
+                    const material = newMaterials[group.materialIndex];
+                    console.log(`    Материал ${group.materialIndex}: type=${material.type}, hasTexture=${!!material.map}`);
+                } else {
+                    console.warn(`    ОШИБКА: materialIndex ${group.materialIndex} вне диапазона [0, ${newMaterials.length - 1}]`);
+                }
+            });
+            
+            
+            // #region agent log
+            
+        console.log('Белые пронумерованные текстуры применены');
+        console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
+        console.log('Новый тип материала:', newMaterials[0]?.type);
+        console.log('Материал имеет текстуру:', !!newMaterials[0]?.map);
+        console.log('Размер текстуры:', newMaterials[0]?.map ? `${newMaterials[0].map.image?.width}x${newMaterials[0].map.image?.height}` : 'нет');
+        console.log('Додекаэдр visible:', window.dodecahedron.visible);
+        console.log('Додекаэдр material:', window.dodecahedron.material);
+        
+        // Система выбора и вращения грани - объявляем переменные ДО использования
+        let selectedFaceIndex = -1;
+        let faceControlsPanel = document.getElementById('face-controls-panel');
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let isDraggingForRotation = false;
+        let dragStartPosition = null;
+        
+        // Инициализация системы выбора грани и списка граней
+        try {
+            console.log('Инициализация выбора граней и списка');
+            faceListElement = document.getElementById('face-list');
+            if (!faceListElement) {
+                console.error('Элемент #face-list не найден в DOM');
+            }
+            initFaceSelection();
+            initFaceList();
+            
+            // Инициализация управления текстурами
+            initTextureControls();
+            
+            // #region agent log
+        } catch (e) {
+            console.error('Ошибка инициализации выбора граней:', e);
+        }
+        
+        // Начальная ориентация на грань 12 (индекс 11)
+        setTimeout(() => {
+            if (window.dodecahedron) {
+                camera.position.set(0, 0, initialCameraZ);
+                deselectFace();
+                centerOnFace(11); // Грань 12 имеет индекс 11
+                selectFace(11);   // Выделяем грань 12
+                // Для грани 12 поворот не требуется (0)
+            }
+        }, 100); // Небольшая задержка для гарантии, что все инициализировано
+
+        // Определение мобильного устройства
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Функция регистрации взаимодействия (предупреждение убрано)
+        function registerInteraction() {
+            // Предупреждение отключено
+        }
+        
+        // Управление мышью и тачем
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotationSpeed = 0.007; // Удобная чувствительность для вращения мышью
+        let initialCameraZ = 7; // Увеличено для более отдаленного вида
+        
+        // Вращение мышью
+        let mouseDownTime = 0;
+        let mouseDownPosition = null;
+        
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            mouseDownTime = Date.now();
+            mouseDownPosition = { x: e.clientX, y: e.clientY };
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if (mouseDownPosition) {
+                const moveDistance = Math.hypot(
+                    e.clientX - mouseDownPosition.x,
+                    e.clientY - mouseDownPosition.y
+                );
+                
+                // Если мышь переместилась более чем на 5 пикселей - начинаем перетаскивание
+                if (moveDistance > 5) {
+                    isDragging = true;
+                }
+            }
+            
+            if (isDragging && window.dodecahedron) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                
+                // Мгновенное вращение при перетаскивании (для отзывчивости)
+                window.dodecahedron.rotation.y -= deltaX * rotationSpeed; // Инвертировано по горизонтали
+                window.dodecahedron.rotation.x += deltaY * rotationSpeed;
+                
+                // Нормализация углов для предотвращения накопления
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation с текущим rotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', () => {
+            isDragging = false;
+            mouseDownPosition = null;
+        });
+
+        renderer.domElement.addEventListener('mouseleave', () => {
+            isDragging = false;
+            mouseDownPosition = null;
+        });
+
+        // Зум колесиком мыши
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            camera.position.z += e.deltaY * 0.01;
+            camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+            registerInteraction();
+        });
+
+        // Управление тачем для мобильных устройств
+        let touchStart = null;
+        let touchStartDistance = 0;
+        let touchStartZoom = initialCameraZ;
+        let lastTouchDistance = 0;
+        let lastTouchAngle = 0;
+        let touchStartRotation = { x: 0, y: 0 };
+        let isTwoFingerGesture = false;
+
+        // Функция вычисления угла между двумя точками
+        function getAngle(x1, y1, x2, y2) {
+            return Math.atan2(y2 - y1, x2 - x1);
+        }
+
+        // Функция вычисления центра между двумя точками
+        function getCenter(x1, y1, x2, y2) {
+            return {
+                x: (x1 + x2) / 2,
+                y: (y1 + y2) / 2
+            };
+        }
+
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Два пальца: начало жеста zoom/rotate
+                isTwoFingerGesture = true;
+                
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                // Расстояние между пальцами для зума
+                touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                lastTouchDistance = touchStartDistance;
+                touchStartZoom = camera.position.z;
+                
+                // Угол между пальцами для вращения
+                lastTouchAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
+                
+                // Сохраняем текущее вращение модели
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
+                
+                registerInteraction();
+            } else if (e.touches.length === 1) {
+                // Один палец: простое перетаскивание для вращения
+                isTwoFingerGesture = false;
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 2 && isTwoFingerGesture && window.dodecahedron) {
+                // Два пальца: zoom и rotate
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                // Pinch-to-zoom: вычисляем расстояние между пальцами
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                if (lastTouchDistance > 0) {
+                    // Масштабирование на основе изменения расстояния
+                    const zoomDelta = (currentDistance - touchStartDistance) * 0.015;
+                    camera.position.z = touchStartZoom - zoomDelta;
+                    camera.position.z = Math.max(2, Math.min(10, camera.position.z));
+                }
+                
+                // Rotate: вычисляем угол между пальцами
+                const currentAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
+                const angleDelta = currentAngle - lastTouchAngle;
+                
+                if (Math.abs(angleDelta) > 0.01) {
+                    // Вращаем модель вокруг оси Z (взгляд камеры)
+                    // Используем ось камеры для вращения
+                    const worldAxis = new THREE.Vector3(0, 0, -1);
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, angleDelta);
+                    const currentQuaternion = window.dodecahedron.quaternion.clone();
+                    const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+                    const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+                    
+                    window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
+                    
+                    // Синхронизируем targetRotation и currentRotation
+                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+                    currentRotation = { x: euler.x, y: euler.y, z: euler.z };
+                }
+                
+                lastTouchDistance = currentDistance;
+                lastTouchAngle = currentAngle;
+                registerInteraction();
+                
+            } else if (e.touches.length === 1 && touchStart && window.dodecahedron) {
+                // Один палец: вращение модели
+                const deltaX = e.touches[0].clientX - touchStart.x;
+                const deltaY = e.touches[0].clientY - touchStart.y;
+                
+                // Вращение с правильной чувствительностью (инвертировано по горизонтали)
+                const sensitivity = 0.01;
+                window.dodecahedron.rotation.y = touchStartRotation.y - deltaX * sensitivity;
+                window.dodecahedron.rotation.x = touchStartRotation.x + deltaY * sensitivity;
+                
+                // Нормализация углов
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
+                
+                registerInteraction();
+            }
+        });
+
+        renderer.domElement.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 0) {
+                // Все пальцы убраны
+                touchStart = null;
+                touchStartDistance = 0;
+                lastTouchDistance = 0;
+                lastTouchAngle = 0;
+                isTwoFingerGesture = false;
+                touchStartRotation = { x: 0, y: 0 };
+            } else if (e.touches.length === 1) {
+                // Остался один палец - переключаемся на одно-пальцевый жест
+                isTwoFingerGesture = false;
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
+            }
+        });
+
+        // Кнопки управления
+
+        // Управление зумом
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            camera.position.z = Math.max(2, camera.position.z - 0.5);
+            registerInteraction();
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            camera.position.z = Math.min(10, camera.position.z + 0.5);
+            registerInteraction();
+        });
+
+        // Сброс вида - возврат на грань 12
+        document.getElementById('reset').addEventListener('click', () => {
+            camera.position.set(0, 0, initialCameraZ);
+            if (window.dodecahedron) {
+                // Сбрасываем выделение
+                deselectFace();
+                // Центрируем на грани 12 (индекс 11) с применением поворота
+                centerOnFace(11, true);
+                // Выделяем грань 12
+                selectFace(11);
+            }
+            registerInteraction();
+        });
+
+        // Управление стрелками
+        document.addEventListener('keydown', (e) => {
+            if (window.dodecahedron) {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        window.dodecahedron.rotation.y += 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowRight':
+                        window.dodecahedron.rotation.y -= 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowUp':
+                        window.dodecahedron.rotation.x += 0.1;
+                        registerInteraction();
+                        break;
+                    case 'ArrowDown':
+                        window.dodecahedron.rotation.x -= 0.1;
+                        registerInteraction();
+                        break;
+                }
+            }
+        });
+
+
+        function updateFaceListSelection() {
+            if (!faceListElement) return;
+            const items = faceListElement.querySelectorAll('.face-list-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === selectedFaceIndex);
+            });
+        }
+
+        function initFaceSelection() {
+            // Обработка клика для выбора грани
+            renderer.domElement.addEventListener('click', (e) => {
+                // Проверяем, было ли перетаскивание
+                if (mouseDownPosition) {
+                    const moveDistance = Math.hypot(
+                        e.clientX - mouseDownPosition.x,
+                        e.clientY - mouseDownPosition.y
+                    );
+                    
+                    // Если было движение более 5 пикселей - это было перетаскивание, не клик
+                    if (moveDistance > 5 || isDragging) {
+                        return;
+                    }
+                }
+                
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                
+                if (window.dodecahedron) {
+                    const intersects = raycaster.intersectObject(window.dodecahedron);
+                    
+                    if (intersects.length > 0) {
+                        const faceIndex = intersects[0].face.materialIndex;
+                        selectFace(faceIndex);
+                        registerInteraction();
+                    }
+                }
+            });
+
+            // Обработка тача для выбора грани на мобильных
+            let touchStartTime = 0;
+            let touchStartPos = null;
+            
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    touchStartTime = Date.now();
+                    touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            renderer.domElement.addEventListener('touchend', (e) => {
+                if (e.changedTouches.length === 1 && touchStartPos) {
+                    const touchEnd = e.changedTouches[0];
+                    const touchDuration = Date.now() - touchStartTime;
+                    const touchDistance = Math.hypot(
+                        touchEnd.clientX - touchStartPos.x,
+                        touchEnd.clientY - touchStartPos.y
+                    );
+                    
+                    // Если это короткое касание без движения - выбираем грань
+                    if (touchDuration < 300 && touchDistance < 10) {
+                        mouse.x = (touchEnd.clientX / window.innerWidth) * 2 - 1;
+                        mouse.y = -(touchEnd.clientY / window.innerHeight) * 2 + 1;
+                        
+                        raycaster.setFromCamera(mouse, camera);
+                        
+                        if (window.dodecahedron) {
+                            const intersects = raycaster.intersectObject(window.dodecahedron);
+                            
+                            if (intersects.length > 0) {
+                                const faceIndex = intersects[0].face.materialIndex;
+                                selectFace(faceIndex);
+                                registerInteraction();
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Функция центрирования додекаэдра по выбранной грани
+        function centerOnFace(faceIndex, applyRotation = false) {
+            if (!window.dodecahedron || faceIndex < 0) return;
+            
+            const geometry = window.dodecahedron.geometry;
+            if (!geometry.groups || geometry.groups.length === 0) return;
+            
+            const group = geometry.groups[faceIndex];
+            if (!group) return;
+            
+            const positions = geometry.attributes.position;
+            const indices = geometry.index;
+            if (!positions || !indices) return;
+            
+            // Собираем все вершины грани для вычисления центра
+            const faceVertices = [];
+            const vertexSet = new Set();
+            
+            for (let i = 0; i < group.count; i++) {
+                const indexPos = group.start + i;
+                if (indexPos < indices.count) {
+                    const vertexIndex = indices.getX(indexPos);
+                    if (!vertexSet.has(vertexIndex)) {
+                        vertexSet.add(vertexIndex);
+                        faceVertices.push(new THREE.Vector3(
+                            positions.getX(vertexIndex),
+                            positions.getY(vertexIndex),
+                            positions.getZ(vertexIndex)
+                        ));
+                    }
+                }
+            }
+            
+            if (faceVertices.length < 3) return;
+            
+            // Вычисляем центр грани
+            const faceCenter = new THREE.Vector3();
+            faceVertices.forEach(v => faceCenter.add(v));
+            faceCenter.divideScalar(faceVertices.length);
+            
+            // Вычисляем нормаль грани (используем первые 3 вершины)
+            const v0 = faceVertices[0];
+            const v1 = faceVertices[1];
+            const v2 = faceVertices[2];
+            const edge1 = new THREE.Vector3().subVectors(v1, v0);
+            const edge2 = new THREE.Vector3().subVectors(v2, v0);
+            let faceNormal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+            
+            // Направление к камере (вдоль оси Z, но от объекта к камере)
+            const cameraDirection = new THREE.Vector3(0, 0, -1); // Отрицательное Z, так как камера смотрит в -Z
+            
+            // Проверяем, нужно ли инвертировать нормаль
+            // Если нормаль направлена от центра додекаэдра, она должна быть направлена к камере
+            const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), faceCenter).normalize();
+            if (faceNormal.dot(toCenter) < 0) {
+                faceNormal.negate();
+            }
+            
+            // Вычисляем кватернион для поворота нормали грани к камере
+            let quaternion = new THREE.Quaternion().setFromUnitVectors(faceNormal, cameraDirection);
+            
+            // Если нужно применить поворот грани, добавляем его сразу
+            if (applyRotation && faceAutoRotations && faceAutoRotations[faceIndex] !== undefined) {
+                const rotationAngle = faceAutoRotations[faceIndex];
+                if (rotationAngle !== 0) {
+                    const worldAxis = new THREE.Vector3(0, 0, -1);
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, rotationAngle);
+                    quaternion = rotationQuaternion.multiply(quaternion);
+                }
+            }
+            
+            // Обновляем targetRotation для плавной анимации
+            const euler = new THREE.Euler().setFromQuaternion(quaternion);
+            targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+            // Синхронизируем currentRotation с текущим rotation додекаэдра для плавного перехода
+            currentRotation = { 
+                x: window.dodecahedron.rotation.x, 
+                y: window.dodecahedron.rotation.y, 
+                z: window.dodecahedron.rotation.z 
+            };
+            
+            // Устанавливаем флаг центрирования
+            isCentering = true;
+        }
+        
+        // Инициализация управления текстурами
+        function initTextureControls() {
+            if (!window.textureSettings) {
+                window.textureSettings = {};
+            }
+            
+            const texturePanel = document.getElementById('texture-controls-panel');
+            if (!texturePanel) return;
+            
+            // Функция обновления текстур для выбранной грани
+            function updateTextureForFace(faceIndex) {
+                if (!window.dodecahedron || !window.dodecahedronMaterials) return;
+                
+                const materials = Array.isArray(window.dodecahedron.material) 
+                    ? window.dodecahedron.material 
+                    : [window.dodecahedron.material];
+                
+                if (faceIndex < 0 || faceIndex >= materials.length) return;
+                
+                const material = materials[faceIndex];
+                const texture = material?.map;
+                if (!texture) return;
+                
+                const orientation = window.faceOrientations && window.faceOrientations[faceIndex] 
+                    ? window.faceOrientations[faceIndex] 
+                    : { rotation: 0, flipX: false, flipY: false };
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                
+                // Применяем настройки
+                texture.offset.set(0, 0);
+                texture.repeat.set(1, 1);
+                texture.center.set(0.5, 0.5);
+                texture.rotation = 0;
+                
+                // Зеркальное отражение
+                texture.offset.x = 1;
+                texture.repeat.x = -1;
+                
+                // Применяем масштаб (через repeat)
+                // scale > 1 = увеличение (уменьшаем repeat)
+                // scale < 1 = уменьшение (увеличиваем repeat)
+                const scale = faceSettings.scale || 1.0;
+                texture.repeat.set(-1 / scale, 1 / scale);
+                
+                // Применяем поворот и смещение
+                texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
+                texture.offset.x = 1 + faceSettings.offsetX;
+                texture.offset.y = faceSettings.offsetY;
+                
+                texture.needsUpdate = true;
+                updateTexturePanel(faceIndex);
+            }
+            
+            // Функция обновления панели управления
+            function updateTexturePanel(faceIndex) {
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                
+                document.getElementById('texture-face-number').textContent = faceIndex + 1;
+                document.getElementById('texture-rotation-value').textContent = 
+                    (faceSettings.rotation * 180 / Math.PI).toFixed(1) + '°';
+                document.getElementById('texture-offset-x-value').textContent = faceSettings.offsetX.toFixed(3);
+                document.getElementById('texture-offset-y-value').textContent = faceSettings.offsetY.toFixed(3);
+                document.getElementById('texture-scale-value').textContent = (faceSettings.scale || 1.0).toFixed(2);
+                
+                // Выводим значения для копирования
+                const output = document.getElementById('texture-values-output');
+                if (output) {
+                    output.textContent = `Грань ${faceIndex + 1}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)}`;
+                }
+            }
+            
+            // Обработчики кнопок с автоповтором при зажатии
+            const stepRotation = Math.PI / 180; // 1 градус
+            const stepOffset = 0.01; // Шаг смещения
+            const stepScale = 0.05; // Шаг масштабирования (5%)
+            
+            // Функция для получения или создания настроек грани
+            function getOrCreateFaceSettings(faceIndex) {
+                if (!window.textureSettings[faceIndex]) {
+                    window.textureSettings[faceIndex] = { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                }
+                return window.textureSettings[faceIndex];
+            }
+            
+            // Система автоповтора при зажатии кнопки
+            let autoRepeatInterval = null;
+            let autoRepeatTimeout = null;
+            let currentAction = null;
+            
+            function startAutoRepeat(action) {
+                // Выполняем действие сразу
+                action();
+                
+                // Задержка перед началом автоповтора (300ms)
+                autoRepeatTimeout = setTimeout(() => {
+                    // Медленный автоповтор (100ms)
+                    autoRepeatInterval = setInterval(() => {
+                        action();
+                    }, 100);
+                }, 300);
+            }
+            
+            function stopAutoRepeat() {
+                if (autoRepeatTimeout) {
+                    clearTimeout(autoRepeatTimeout);
+                    autoRepeatTimeout = null;
+                }
+                if (autoRepeatInterval) {
+                    clearInterval(autoRepeatInterval);
+                    autoRepeatInterval = null;
+                }
+                currentAction = null;
+            }
+            
+            // Функция для создания обработчиков с автоповтором
+            function createAutoRepeatHandler(action) {
+                return {
+                    start: () => {
+                        if (selectedFaceIndex < 0) return;
+                        currentAction = action;
+                        startAutoRepeat(action);
+                    },
+                    stop: () => {
+                        stopAutoRepeat();
+                    }
+                };
+            }
+            
+            // Обработчики для кнопок поворота
+            const rotateLeftHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).rotation -= stepRotation;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            const rotateRightHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).rotation += stepRotation;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            // Обработчики для кнопок смещения X
+            const offsetXLeftHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetX -= stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            const offsetXRightHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetX += stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            // Обработчики для кнопок смещения Y
+            const offsetYDownHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetY -= stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            const offsetYUpHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetY += stepOffset;
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            // Обработчики для кнопок масштаба
+            const scaleDownHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                const settings = getOrCreateFaceSettings(selectedFaceIndex);
+                settings.scale = Math.max(0.1, (settings.scale || 1.0) - stepScale);
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            const scaleUpHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                const settings = getOrCreateFaceSettings(selectedFaceIndex);
+                settings.scale = Math.min(5.0, (settings.scale || 1.0) + stepScale);
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            // Привязываем обработчики к кнопкам
+            const rotateLeftBtn = document.getElementById('texture-rotate-left');
+            const rotateRightBtn = document.getElementById('texture-rotate-right');
+            const offsetXLeftBtn = document.getElementById('texture-offset-x-left');
+            const offsetXRightBtn = document.getElementById('texture-offset-x-right');
+            const offsetYDownBtn = document.getElementById('texture-offset-y-down');
+            const offsetYUpBtn = document.getElementById('texture-offset-y-up');
+            const scaleDownBtn = document.getElementById('texture-scale-down');
+            const scaleUpBtn = document.getElementById('texture-scale-up');
+            
+            // Обработчики для мыши
+            rotateLeftBtn.addEventListener('mousedown', rotateLeftHandler.start);
+            rotateLeftBtn.addEventListener('mouseup', rotateLeftHandler.stop);
+            rotateLeftBtn.addEventListener('mouseleave', rotateLeftHandler.stop);
+            
+            rotateRightBtn.addEventListener('mousedown', rotateRightHandler.start);
+            rotateRightBtn.addEventListener('mouseup', rotateRightHandler.stop);
+            rotateRightBtn.addEventListener('mouseleave', rotateRightHandler.stop);
+            
+            offsetXLeftBtn.addEventListener('mousedown', offsetXLeftHandler.start);
+            offsetXLeftBtn.addEventListener('mouseup', offsetXLeftHandler.stop);
+            offsetXLeftBtn.addEventListener('mouseleave', offsetXLeftHandler.stop);
+            
+            offsetXRightBtn.addEventListener('mousedown', offsetXRightHandler.start);
+            offsetXRightBtn.addEventListener('mouseup', offsetXRightHandler.stop);
+            offsetXRightBtn.addEventListener('mouseleave', offsetXRightHandler.stop);
+            
+            offsetYDownBtn.addEventListener('mousedown', offsetYDownHandler.start);
+            offsetYDownBtn.addEventListener('mouseup', offsetYDownHandler.stop);
+            offsetYDownBtn.addEventListener('mouseleave', offsetYDownHandler.stop);
+            
+            offsetYUpBtn.addEventListener('mousedown', offsetYUpHandler.start);
+            offsetYUpBtn.addEventListener('mouseup', offsetYUpHandler.stop);
+            offsetYUpBtn.addEventListener('mouseleave', offsetYUpHandler.stop);
+            
+            scaleDownBtn.addEventListener('mousedown', scaleDownHandler.start);
+            scaleDownBtn.addEventListener('mouseup', scaleDownHandler.stop);
+            scaleDownBtn.addEventListener('mouseleave', scaleDownHandler.stop);
+            
+            scaleUpBtn.addEventListener('mousedown', scaleUpHandler.start);
+            scaleUpBtn.addEventListener('mouseup', scaleUpHandler.stop);
+            scaleUpBtn.addEventListener('mouseleave', scaleUpHandler.stop);
+            
+            // Обработчики для тач-устройств
+            rotateLeftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rotateLeftHandler.start(); });
+            rotateLeftBtn.addEventListener('touchend', (e) => { e.preventDefault(); rotateLeftHandler.stop(); });
+            rotateLeftBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); rotateLeftHandler.stop(); });
+            
+            rotateRightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rotateRightHandler.start(); });
+            rotateRightBtn.addEventListener('touchend', (e) => { e.preventDefault(); rotateRightHandler.stop(); });
+            rotateRightBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); rotateRightHandler.stop(); });
+            
+            offsetXLeftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetXLeftHandler.start(); });
+            offsetXLeftBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetXLeftHandler.stop(); });
+            offsetXLeftBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetXLeftHandler.stop(); });
+            
+            offsetXRightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetXRightHandler.start(); });
+            offsetXRightBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetXRightHandler.stop(); });
+            offsetXRightBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetXRightHandler.stop(); });
+            
+            offsetYDownBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetYDownHandler.start(); });
+            offsetYDownBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetYDownHandler.stop(); });
+            offsetYDownBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetYDownHandler.stop(); });
+            
+            offsetYUpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetYUpHandler.start(); });
+            offsetYUpBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetYUpHandler.stop(); });
+            offsetYUpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetYUpHandler.stop(); });
+            
+            scaleDownBtn.addEventListener('touchstart', (e) => { e.preventDefault(); scaleDownHandler.start(); });
+            scaleDownBtn.addEventListener('touchend', (e) => { e.preventDefault(); scaleDownHandler.stop(); });
+            scaleDownBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); scaleDownHandler.stop(); });
+            
+            scaleUpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); scaleUpHandler.start(); });
+            scaleUpBtn.addEventListener('touchend', (e) => { e.preventDefault(); scaleUpHandler.stop(); });
+            scaleUpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); scaleUpHandler.stop(); });
+            
+            document.getElementById('texture-reset').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            document.getElementById('texture-copy-values').addEventListener('click', () => {
+                if (selectedFaceIndex < 0) return;
+                const faceSettings = window.textureSettings[selectedFaceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)} };`;
+                navigator.clipboard.writeText(code).then(() => {
+                    alert('Значения скопированы в буфер обмена!');
+                }).catch(() => {
+                    console.log(code);
+                    alert('Значения выведены в консоль');
+                });
+            });
+            
+            // Сохраняем ссылки на функции для обновления панели
+            window.updateTextureForFace = updateTextureForFace;
+            window.updateTexturePanel = updateTexturePanel;
+        }
+        
+        function selectFace(faceIndex) {
+            const materials = Array.isArray(window.dodecahedron.material) 
+                ? window.dodecahedron.material 
+                : [window.dodecahedron.material];
+            
+            // Снимаем выделение с предыдущей грани
+            if (selectedFaceIndex >= 0 && materials[selectedFaceIndex]) {
+                if (materials[selectedFaceIndex].emissive) {
+                    materials[selectedFaceIndex].emissive.setHex(0x000000);
+                    materials[selectedFaceIndex].emissiveIntensity = 0;
+                }
+            }
+            
+            // Выделяем новую грань (без подсветки)
+            selectedFaceIndex = faceIndex;
+            
+            // Обновляем визуальное выделение в списке граней
+            updateFaceListSelection();
+            
+            // Показываем панель управления гранью
+            faceControlsPanel.classList.add('active');
+        }
+
+        function deselectFace() {
+            const materials = Array.isArray(window.dodecahedron.material) 
+                ? window.dodecahedron.material 
+                : [window.dodecahedron.material];
+            
+            if (selectedFaceIndex >= 0 && materials[selectedFaceIndex] && materials[selectedFaceIndex].emissive) {
+                materials[selectedFaceIndex].emissive.setHex(0x000000);
+                materials[selectedFaceIndex].emissiveIntensity = 0;
+            }
+            selectedFaceIndex = -1;
+            faceControlsPanel.classList.remove('active');
+            updateFaceListSelection();
+        }
+
+        // Сохраняем текущую ориентацию для плавной анимации
+        let targetRotation = { x: 0, y: 0, z: 0 };
+        let currentRotation = { x: 0, y: 0, z: 0 };
+        const smoothRotationSpeed = 0.1; // Скорость плавного вращения
+        let isCentering = false; // Флаг, указывающий, что идет центрирование
+        const faceRotationStep = (2 * Math.PI) / 10; // 36°: полный оборот за 10 шагов
+        
+        // Массив поворотов для каждой грани при выборе (индексы 0-11 соответствуют граням 1-12)
+        // Каждый шаг = 36° (2π/10 радиан)
+        const faceAutoRotations = [
+            -1 * faceRotationStep,  // Грань 1: 1 влево
+            +1 * faceRotationStep,   // Грань 2: 1 вправо
+            +1 * faceRotationStep,   // Грань 3: 1 вправо
+            0,                       // Грань 4: без поворота
+            +2 * faceRotationStep,   // Грань 5: 2 вправо
+            -4 * faceRotationStep,   // Грань 6: 4 влево
+            -1 * faceRotationStep,   // Грань 7: 1 влево
+            +1 * faceRotationStep,   // Грань 8: 1 вправо
+            -5 * faceRotationStep,   // Грань 9: 5 влево
+            0,                       // Грань 10: без поворота
+            -2 * faceRotationStep,  // Грань 11: 2 влево
+            0                        // Грань 12: без поворота
+        ];
+        
+        function rotateFace(angle) {
+            if (selectedFaceIndex < 0 || !window.dodecahedron) return;
+            
+            // После центрирования нормаль выбранной грани выровнена с направлением камеры (0,0,-1)
+            // Поэтому, чтобы крутить грань как «монетку» и не уводить её из центра,
+            // вращаем весь додекаэдр вокруг МИРОВОЙ оси, совпадающей с направлением камеры.
+            const worldAxis = new THREE.Vector3(0, 0, -1); // ось вдоль взгляда камеры
+            
+            const currentQuaternion = window.dodecahedron.quaternion.clone();
+            const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, angle);
+            
+            // Важно: сначала поворот вокруг оси камеры, потом уже существующая ориентация
+            const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+            
+            const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+            targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+        }
+        
+        // Функция плавного вращения
+        function smoothRotate() {
+            if (!window.dodecahedron) return;
+
+            // Не вмешиваемся в ручное вращение мышью/тачем, чтобы не было «рывков»
+            if (isDragging || isDraggingForRotation || isTouchDragging) return;
+            
+            // Плавная интерполяция вращения через кватернионы для правильного вращения
+            const currentQuat = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(currentRotation.x, currentRotation.y, currentRotation.z)
+            );
+            const targetQuat = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler(targetRotation.x, targetRotation.y, targetRotation.z)
+            );
+            
+            // Интерполируем кватернионы
+            currentQuat.slerp(targetQuat, smoothRotationSpeed);
+            
+            // Обновляем rotation из кватерниона
+            const euler = new THREE.Euler().setFromQuaternion(currentQuat);
+            currentRotation = { x: euler.x, y: euler.y, z: euler.z };
+            
+            // Проверяем, нужно ли еще обновлять
+            const distance = currentQuat.angleTo(targetQuat);
+            if (distance > 0.001) {
+                window.dodecahedron.rotation.set(currentRotation.x, currentRotation.y, currentRotation.z);
+            } else if (isCentering) {
+                // Анимация центрирования завершена
+                isCentering = false;
+                // Вызываем событие завершения центрирования
+                window.dispatchEvent(new CustomEvent('faceCentered'));
+            }
+        }
+        
+        // Функция для ожидания завершения центрирования
+        let centeringCallback = null; // Защита от двойного вызова
+        function waitForCentering(callback) {
+            // Если уже идет ожидание центрирования, игнорируем новый вызов
+            if (centeringCallback) {
+                return;
+            }
+            
+            centeringCallback = callback;
+            isCentering = true;
+            const checkInterval = setInterval(() => {
+                if (!isCentering && centeringCallback) {
+                    clearInterval(checkInterval);
+                    const cb = centeringCallback;
+                    centeringCallback = null; // Сбрасываем перед вызовом
+                    // Небольшая дополнительная задержка для полной стабилизации
+                    setTimeout(cb, 200);
+                }
+            }, 50); // Проверяем каждые 50ms
+            
+            // Таймаут на случай, если анимация не завершится
+            setTimeout(() => {
+                clearInterval(checkInterval);
+                if (centeringCallback) {
+                    const cb = centeringCallback;
+                    centeringCallback = null; // Сбрасываем перед вызовом
+                    isCentering = false;
+                    cb();
+                }
+            }, 3000); // Максимум 3 секунды
+        }
+
+        // Обработчики кнопок вращения грани
+        document.getElementById('face-rotate-left').addEventListener('click', () => {
+            // Вращение на 72° влево: полный оборот за 5 кликов
+            rotateFace(-faceRotationStep);
+            registerInteraction();
+        });
+
+        document.getElementById('face-rotate-right').addEventListener('click', () => {
+            // Вращение на 72° вправо: полный оборот за 5 кликов
+            rotateFace(faceRotationStep);
+            registerInteraction();
+        });
+
+        document.getElementById('face-deselect').addEventListener('click', () => {
+            deselectFace();
+            registerInteraction();
+        });
+
+        // Инициализация списка граней (номера 1–12)
+        function initFaceList() {
+            try {
+                if (!faceListElement) {
+                    console.warn('faceListElement не найден');
+                    return;
+                }
+                
+                faceListElement.innerHTML = '';
+                
+                for (let i = 0; i < 12; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'face-list-item';
+                    btn.textContent = String(i + 1);
+                    btn.dataset.faceIndex = i.toString();
+                    
+                    btn.addEventListener('click', () => {
+                        // При выборе из списка: сразу вычисляем финальное положение с поворотом
+                        selectFace(i);
+                        centerOnFace(i, true); // Передаем true для применения поворота сразу
+                        registerInteraction();
+                    });
+                    
+                    faceListElement.appendChild(btn);
+                }
+                
+                // Первоначальное выделение грани 1
+                selectedFaceIndex = 0;
+                updateFaceListSelection();
+                
+            } catch (e) {
+                console.error('Ошибка initFaceList:', e);
+            }
+        }
+
+        // Адаптивность
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Анимация
+        let renderCallCount = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Плавное вращение додекаэдра
+            smoothRotate();
+            
+            renderer.render(scene, camera);
+            renderCallCount++;
+            
+            // #region agent log
+            if (renderCallCount <= 3 || renderCallCount % 60 === 0) {
+                const gl = renderer.getContext();
+                const frustum = new THREE.Frustum();
+                const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+                frustum.setFromProjectionMatrix(matrix);
+                const dodecahedronInFrustum = window.dodecahedron ? frustum.intersectsObject(window.dodecahedron) : false;
+                const dodecahedronBoundingBox = window.dodecahedron ? new THREE.Box3().setFromObject(window.dodecahedron) : null;
+                
+                // Проверяем все объекты в сцене
+                const sceneObjects = [];
+                scene.children.forEach((child, index) => {
+                    if (child instanceof THREE.Mesh) {
+                        const bbox = new THREE.Box3().setFromObject(child);
+                        const inFrustum = frustum.intersectsObject(child);
+                        const material = Array.isArray(child.material) ? child.material[0] : child.material;
+                        sceneObjects.push({
+                            index: index,
+                            type: child.geometry?.type || 'unknown',
+                            visible: child.visible,
+                            inFrustum: inFrustum,
+                            position: {x: child.position.x, y: child.position.y, z: child.position.z},
+                            scale: {x: child.scale.x, y: child.scale.y, z: child.scale.z},
+                            materialType: material?.type,
+                            materialColor: material?.color?.getHex(),
+                            bboxSize: {x: bbox.getSize(new THREE.Vector3()).x, y: bbox.getSize(new THREE.Vector3()).y, z: bbox.getSize(new THREE.Vector3()).z}
+                        });
+                    }
+                });
+                
+            }
+        }
+        
+        console.log('Запуск анимации...');
+        console.log('Сцена:', scene);
+        console.log('Камера:', camera);
+        console.log('Рендерер:', renderer);
+        
+        
+        animate();
+    </script>
+</body>
+</html>
