@@ -669,16 +669,6 @@
                 console.log('WebGL renderer:', gl.getParameter(gl.RENDERER));
             }
         }, 100);
-        directionalLight1.castShadow = false;
-        scene.add(directionalLight1);
-
-        // Дополнительный мягкий свет снизу справа для заполнения теней
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
-        directionalLight2.position.set(-3, -5, -3);
-        directionalLight2.castShadow = false;
-        scene.add(directionalLight2);
-        
-        console.log('Освещение добавлено в сцену');
 
         // Создание додекаэдра
         const geometry = new THREE.DodecahedronGeometry(1, 0);
