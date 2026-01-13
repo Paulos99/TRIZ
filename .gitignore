@@ -1,0 +1,25 @@
+# Системные файлы Windows
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Временные файлы
+*.tmp
+*.log
+*.swp
+*~
+
+# Редакторы
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Node modules (если будут добавлены)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Бэкапы
+*.bak
+*.backup
