@@ -1048,12 +1048,22 @@
                     texture.magFilter = THREE.LinearFilter;
                     texture.needsUpdate = true;
                     
-                    // ПРОСТОЙ ПОДХОД: Применяем текстуру с минимальными трансформациями
+                    // Применяем текстуру с зеркальным отражением и поворотом
                     // Сбрасываем все трансформации
                     texture.offset.set(0, 0);
                     texture.repeat.set(1, 1);
                     texture.center.set(0.5, 0.5);
-                    texture.rotation = orientation.rotation || 0;
+                    texture.rotation = 0;
+                    
+                    // Зеркальное отражение по горизонтали
+                    texture.offset.x = 1;
+                    texture.repeat.x = -1;
+                    
+                    // Поворот против часовой стрелки на 30 градусов
+                    // 30 градусов = Math.PI / 6 радиан
+                    // Против часовой стрелки = отрицательное направление
+                    const rotation30deg = -Math.PI / 6; // -30 градусов
+                    texture.rotation = (orientation.rotation || 0) + rotation30deg;
                     
                     // Убеждаемся, что текстура обновится
                     texture.needsUpdate = true;
