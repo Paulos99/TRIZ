@@ -242,7 +242,7 @@
                 display: none !important;
             }
         }
-        
+
         .btn {
             background: rgba(30, 35, 50, 0.7);
             border: 1px solid rgba(100, 150, 255, 0.25);
@@ -1474,7 +1474,7 @@
                         const indexPos = group.start + i;
                         if (indexPos < indices.count) {
                             const vertexIndex = indices.getX(indexPos);
-                            vertexSet.add(vertexIndex);
+                                vertexSet.add(vertexIndex);
                         }
                     }
                     
@@ -1605,7 +1605,7 @@
                                 const normalizedU = rangeU > 0 ? (uvData.u - minU) / rangeU : 0.5;
                                 const normalizedV = rangeV > 0 ? (uvData.v - minV) / rangeV : 0.5;
                                 
-                                uv.setXY(vertexIndex, normalizedU, normalizedV);
+                        uv.setXY(vertexIndex, normalizedU, normalizedV);
                             }
                         }
                     }
@@ -1709,7 +1709,7 @@
         // Управление мышью и тачем
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let rotationSpeed = 0.01; // Удобная чувствительность для вращения мышью
+        let rotationSpeed = 0.007; // Удобная чувствительность для вращения мышью
         let initialCameraZ = 7; // Увеличено для более отдаленного вида
         
         // Вращение мышью
@@ -1745,7 +1745,7 @@
                 // #endregion
                 
                 // Мгновенное вращение при перетаскивании (для отзывчивости)
-                window.dodecahedron.rotation.y += deltaX * rotationSpeed;
+                window.dodecahedron.rotation.y -= deltaX * rotationSpeed; // Инвертировано по горизонтали
                 window.dodecahedron.rotation.x += deltaY * rotationSpeed;
                 
                 // Нормализация углов для предотвращения накопления
@@ -1787,25 +1787,66 @@
 
         // Управление тачем для мобильных устройств
         let touchStart = null;
-        let previousTouchPosition = null;
         let touchStartDistance = 0;
         let touchStartZoom = initialCameraZ;
         let lastTouchDistance = 0;
-        let isTouchDragging = false;
+        let lastTouchAngle = 0;
+        let touchStartRotation = { x: 0, y: 0 };
+        let isTwoFingerGesture = false;
+
+        // Функция вычисления угла между двумя точками
+        function getAngle(x1, y1, x2, y2) {
+            return Math.atan2(y2 - y1, x2 - x1);
+        }
+
+        // Функция вычисления центра между двумя точками
+        function getCenter(x1, y1, x2, y2) {
+            return {
+                x: (x1 + x2) / 2,
+                y: (y1 + y2) / 2
+            };
+        }
 
         renderer.domElement.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                isTouchDragging = false;
-                registerInteraction();
-            } else if (e.touches.length === 2) {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Два пальца: начало жеста zoom/rotate
+                isTwoFingerGesture = true;
+                
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                
+                // Расстояние между пальцами для зума
                 touchStartDistance = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
                 );
-                touchStartZoom = camera.position.z;
                 lastTouchDistance = touchStartDistance;
+                touchStartZoom = camera.position.z;
+                
+                // Угол между пальцами для вращения
+                lastTouchAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
+                
+                // Сохраняем текущее вращение модели
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
+                
+                registerInteraction();
+            } else if (e.touches.length === 1) {
+                // Один палец: простое перетаскивание для вращения
+                isTwoFingerGesture = false;
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
                 registerInteraction();
             }
         });
@@ -1813,70 +1854,98 @@
         renderer.domElement.addEventListener('touchmove', (e) => {
             e.preventDefault();
             
-            if (e.touches.length === 1 && touchStart && previousTouchPosition && window.dodecahedron) {
-                // Проверяем, было ли движение для начала перетаскивания
-                if (!isTouchDragging) {
-                    const moveDistance = Math.hypot(
-                        e.touches[0].clientX - touchStart.x,
-                        e.touches[0].clientY - touchStart.y
-                    );
-                    if (moveDistance > 5) {
-                        isTouchDragging = true;
-                    }
-                }
+            if (e.touches.length === 2 && isTwoFingerGesture && window.dodecahedron) {
+                // Два пальца: zoom и rotate
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
                 
-                if (isTouchDragging) {
-                    // Вращение одним пальцем - используем дельту от предыдущей позиции
-                    const deltaX = e.touches[0].clientX - previousTouchPosition.x;
-                    const deltaY = e.touches[0].clientY - previousTouchPosition.y;
-                    
-                    // Вращение с правильной чувствительностью
-                    const sensitivity = 0.01; // Коэффициент чувствительности для тач-устройств
-                    window.dodecahedron.rotation.y += deltaX * sensitivity;
-                    window.dodecahedron.rotation.x += deltaY * sensitivity;
-                    
-                    // Нормализация углов для предотвращения накопления
-                    if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
-                        window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
-                    }
-                    if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
-                        window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
-                    }
-                    
-                    // Синхронизируем targetRotation и currentRotation с текущим rotation
-                    targetRotation.y = window.dodecahedron.rotation.y;
-                    targetRotation.x = window.dodecahedron.rotation.x;
-                    currentRotation.y = window.dodecahedron.rotation.y;
-                    currentRotation.x = window.dodecahedron.rotation.x;
-                    
-                    // Обновляем предыдущую позицию для следующего кадра
-                    previousTouchPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    registerInteraction();
-                }
-            } else if (e.touches.length === 2) {
-                // Зум двумя пальцами
-                const touchDistance = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
+                // Pinch-to-zoom: вычисляем расстояние между пальцами
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
                 );
                 
                 if (lastTouchDistance > 0) {
-                    const zoomDelta = (touchDistance - lastTouchDistance) * 0.02; // Улучшенная чувствительность зума
+                    // Масштабирование на основе изменения расстояния
+                    const zoomDelta = (currentDistance - touchStartDistance) * 0.015;
                     camera.position.z = touchStartZoom - zoomDelta;
                     camera.position.z = Math.max(2, Math.min(10, camera.position.z));
                 }
                 
-                lastTouchDistance = touchDistance;
+                // Rotate: вычисляем угол между пальцами
+                const currentAngle = getAngle(touch1.clientX, touch1.clientY, touch2.clientX, touch2.clientY);
+                const angleDelta = currentAngle - lastTouchAngle;
+                
+                if (Math.abs(angleDelta) > 0.01) {
+                    // Вращаем модель вокруг оси Z (взгляд камеры)
+                    // Используем ось камеры для вращения
+                    const worldAxis = new THREE.Vector3(0, 0, -1);
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, angleDelta);
+                    const currentQuaternion = window.dodecahedron.quaternion.clone();
+                    const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+                    const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+                    
+                    window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
+                    
+                    // Синхронизируем targetRotation и currentRotation
+                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+                    currentRotation = { x: euler.x, y: euler.y, z: euler.z };
+                }
+                
+                lastTouchDistance = currentDistance;
+                lastTouchAngle = currentAngle;
+                registerInteraction();
+                
+            } else if (e.touches.length === 1 && touchStart && window.dodecahedron) {
+                // Один палец: вращение модели
+                const deltaX = e.touches[0].clientX - touchStart.x;
+                const deltaY = e.touches[0].clientY - touchStart.y;
+                
+                // Вращение с правильной чувствительностью (инвертировано по горизонтали)
+                const sensitivity = 0.01;
+                window.dodecahedron.rotation.y = touchStartRotation.y - deltaX * sensitivity;
+                window.dodecahedron.rotation.x = touchStartRotation.x + deltaY * sensitivity;
+                
+                // Нормализация углов
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
+                
                 registerInteraction();
             }
         });
 
-        renderer.domElement.addEventListener('touchend', () => {
-            touchStart = null;
-            previousTouchPosition = null;
-            touchStartDistance = 0;
-            lastTouchDistance = 0;
-            isTouchDragging = false;
+        renderer.domElement.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 0) {
+                // Все пальцы убраны
+                touchStart = null;
+                touchStartDistance = 0;
+                lastTouchDistance = 0;
+                lastTouchAngle = 0;
+                isTwoFingerGesture = false;
+                touchStartRotation = { x: 0, y: 0 };
+            } else if (e.touches.length === 1) {
+                // Остался один палец - переключаемся на одно-пальцевый жест
+                isTwoFingerGesture = false;
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                if (window.dodecahedron) {
+                    touchStartRotation = {
+                        x: window.dodecahedron.rotation.x,
+                        y: window.dodecahedron.rotation.y
+                    };
+                }
+            }
         });
 
         // Кнопки управления
