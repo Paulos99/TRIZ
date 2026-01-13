@@ -452,7 +452,7 @@
         <button class="btn btn-face" id="face-deselect" title="Снять выделение">✕</button>
     </div>
 
-    <div class="texture-controls-panel" id="texture-controls-panel" style="position: fixed; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(30, 30, 40, 0.95); padding: 15px; border-radius: 8px; display: none; z-index: 1000; color: white; font-size: 12px; border: 1px solid rgba(100, 150, 255, 0.3);">
+    <div class="texture-controls-panel" id="texture-controls-panel" style="position: fixed; top: 120px; left: 20px; background: rgba(30, 30, 40, 0.95); padding: 15px; border-radius: 8px; display: none; z-index: 1000; color: white; font-size: 12px; border: 1px solid rgba(100, 150, 255, 0.3); max-width: 300px;">
         <div style="margin-bottom: 10px; font-weight: bold;">Управление текстурой грани <span id="texture-face-number">1</span>:</div>
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
             <span style="min-width: 80px;">Поворот:</span>
@@ -471,6 +471,12 @@
             <button class="btn btn-face" id="texture-offset-y-down" title="Сместить вниз">↓</button>
             <button class="btn btn-face" id="texture-offset-y-up" title="Сместить вверх">↑</button>
             <span id="texture-offset-y-value" style="min-width: 60px; text-align: center;">0.00</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+            <span style="min-width: 80px;">Масштаб:</span>
+            <button class="btn btn-face" id="texture-scale-down" title="Уменьшить">−</button>
+            <button class="btn btn-face" id="texture-scale-up" title="Увеличить">+</button>
+            <span id="texture-scale-value" style="min-width: 60px; text-align: center;">1.00</span>
         </div>
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
             <button class="btn btn-face" id="texture-reset" style="width: 100%;">Сбросить</button>
@@ -1091,7 +1097,11 @@
                     // Применяем ручные настройки текстуры (для тестирования)
                     // Эти значения можно изменять через панель управления
                     const textureSettings = window.textureSettings || {};
-                    const faceSettings = textureSettings[i] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                    const faceSettings = textureSettings[i] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                    
+                    // Применяем масштаб (через repeat)
+                    const scale = faceSettings.scale || 1.0;
+                    texture.repeat.set(-1 / scale, 1 / scale);
                     
                     // Применяем поворот (базовый + ручной)
                     texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
@@ -2017,7 +2027,7 @@
                 const orientation = window.faceOrientations && window.faceOrientations[faceIndex] 
                     ? window.faceOrientations[faceIndex] 
                     : { rotation: 0, flipX: false, flipY: false };
-                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
                 
                 // Применяем настройки
                 texture.offset.set(0, 0);
@@ -2028,6 +2038,12 @@
                 // Зеркальное отражение
                 texture.offset.x = 1;
                 texture.repeat.x = -1;
+                
+                // Применяем масштаб (через repeat)
+                // scale > 1 = увеличение (уменьшаем repeat)
+                // scale < 1 = уменьшение (увеличиваем repeat)
+                const scale = faceSettings.scale || 1.0;
+                texture.repeat.set(-1 / scale, 1 / scale);
                 
                 // Применяем поворот и смещение
                 texture.rotation = (orientation.rotation || 0) + faceSettings.rotation;
@@ -2040,89 +2056,219 @@
             
             // Функция обновления панели управления
             function updateTexturePanel(faceIndex) {
-                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
+                const faceSettings = window.textureSettings[faceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
                 
                 document.getElementById('texture-face-number').textContent = faceIndex + 1;
                 document.getElementById('texture-rotation-value').textContent = 
                     (faceSettings.rotation * 180 / Math.PI).toFixed(1) + '°';
                 document.getElementById('texture-offset-x-value').textContent = faceSettings.offsetX.toFixed(3);
                 document.getElementById('texture-offset-y-value').textContent = faceSettings.offsetY.toFixed(3);
+                document.getElementById('texture-scale-value').textContent = (faceSettings.scale || 1.0).toFixed(2);
                 
                 // Выводим значения для копирования
                 const output = document.getElementById('texture-values-output');
                 if (output) {
-                    output.textContent = `Грань ${faceIndex + 1}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}`;
+                    output.textContent = `Грань ${faceIndex + 1}: rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)}`;
                 }
             }
             
-            // Обработчики кнопок
+            // Обработчики кнопок с автоповтором при зажатии
             const stepRotation = Math.PI / 180; // 1 градус
             const stepOffset = 0.01; // Шаг смещения
+            const stepScale = 0.05; // Шаг масштабирования (5%)
             
-            document.getElementById('texture-rotate-left').addEventListener('click', () => {
-                if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+            // Функция для получения или создания настроек грани
+            function getOrCreateFaceSettings(faceIndex) {
+                if (!window.textureSettings[faceIndex]) {
+                    window.textureSettings[faceIndex] = { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
                 }
-                window.textureSettings[selectedFaceIndex].rotation -= stepRotation;
+                return window.textureSettings[faceIndex];
+            }
+            
+            // Система автоповтора при зажатии кнопки
+            let autoRepeatInterval = null;
+            let autoRepeatTimeout = null;
+            let currentAction = null;
+            
+            function startAutoRepeat(action) {
+                // Выполняем действие сразу
+                action();
+                
+                // Задержка перед началом автоповтора (300ms)
+                autoRepeatTimeout = setTimeout(() => {
+                    // Медленный автоповтор (100ms)
+                    autoRepeatInterval = setInterval(() => {
+                        action();
+                    }, 100);
+                }, 300);
+            }
+            
+            function stopAutoRepeat() {
+                if (autoRepeatTimeout) {
+                    clearTimeout(autoRepeatTimeout);
+                    autoRepeatTimeout = null;
+                }
+                if (autoRepeatInterval) {
+                    clearInterval(autoRepeatInterval);
+                    autoRepeatInterval = null;
+                }
+                currentAction = null;
+            }
+            
+            // Функция для создания обработчиков с автоповтором
+            function createAutoRepeatHandler(action) {
+                return {
+                    start: () => {
+                        if (selectedFaceIndex < 0) return;
+                        currentAction = action;
+                        startAutoRepeat(action);
+                    },
+                    stop: () => {
+                        stopAutoRepeat();
+                    }
+                };
+            }
+            
+            // Обработчики для кнопок поворота
+            const rotateLeftHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                getOrCreateFaceSettings(selectedFaceIndex).rotation -= stepRotation;
                 updateTextureForFace(selectedFaceIndex);
             });
             
-            document.getElementById('texture-rotate-right').addEventListener('click', () => {
+            const rotateRightHandler = createAutoRepeatHandler(() => {
                 if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
-                }
-                window.textureSettings[selectedFaceIndex].rotation += stepRotation;
+                getOrCreateFaceSettings(selectedFaceIndex).rotation += stepRotation;
                 updateTextureForFace(selectedFaceIndex);
             });
             
-            document.getElementById('texture-offset-x-left').addEventListener('click', () => {
+            // Обработчики для кнопок смещения X
+            const offsetXLeftHandler = createAutoRepeatHandler(() => {
                 if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
-                }
-                window.textureSettings[selectedFaceIndex].offsetX -= stepOffset;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetX -= stepOffset;
                 updateTextureForFace(selectedFaceIndex);
             });
             
-            document.getElementById('texture-offset-x-right').addEventListener('click', () => {
+            const offsetXRightHandler = createAutoRepeatHandler(() => {
                 if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
-                }
-                window.textureSettings[selectedFaceIndex].offsetX += stepOffset;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetX += stepOffset;
                 updateTextureForFace(selectedFaceIndex);
             });
             
-            document.getElementById('texture-offset-y-down').addEventListener('click', () => {
+            // Обработчики для кнопок смещения Y
+            const offsetYDownHandler = createAutoRepeatHandler(() => {
                 if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
-                }
-                window.textureSettings[selectedFaceIndex].offsetY -= stepOffset;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetY -= stepOffset;
                 updateTextureForFace(selectedFaceIndex);
             });
             
-            document.getElementById('texture-offset-y-up').addEventListener('click', () => {
+            const offsetYUpHandler = createAutoRepeatHandler(() => {
                 if (selectedFaceIndex < 0) return;
-                if (!window.textureSettings[selectedFaceIndex]) {
-                    window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
-                }
-                window.textureSettings[selectedFaceIndex].offsetY += stepOffset;
+                getOrCreateFaceSettings(selectedFaceIndex).offsetY += stepOffset;
                 updateTextureForFace(selectedFaceIndex);
             });
+            
+            // Обработчики для кнопок масштаба
+            const scaleDownHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                const settings = getOrCreateFaceSettings(selectedFaceIndex);
+                settings.scale = Math.max(0.1, (settings.scale || 1.0) - stepScale);
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            const scaleUpHandler = createAutoRepeatHandler(() => {
+                if (selectedFaceIndex < 0) return;
+                const settings = getOrCreateFaceSettings(selectedFaceIndex);
+                settings.scale = Math.min(5.0, (settings.scale || 1.0) + stepScale);
+                updateTextureForFace(selectedFaceIndex);
+            });
+            
+            // Привязываем обработчики к кнопкам
+            const rotateLeftBtn = document.getElementById('texture-rotate-left');
+            const rotateRightBtn = document.getElementById('texture-rotate-right');
+            const offsetXLeftBtn = document.getElementById('texture-offset-x-left');
+            const offsetXRightBtn = document.getElementById('texture-offset-x-right');
+            const offsetYDownBtn = document.getElementById('texture-offset-y-down');
+            const offsetYUpBtn = document.getElementById('texture-offset-y-up');
+            const scaleDownBtn = document.getElementById('texture-scale-down');
+            const scaleUpBtn = document.getElementById('texture-scale-up');
+            
+            // Обработчики для мыши
+            rotateLeftBtn.addEventListener('mousedown', rotateLeftHandler.start);
+            rotateLeftBtn.addEventListener('mouseup', rotateLeftHandler.stop);
+            rotateLeftBtn.addEventListener('mouseleave', rotateLeftHandler.stop);
+            
+            rotateRightBtn.addEventListener('mousedown', rotateRightHandler.start);
+            rotateRightBtn.addEventListener('mouseup', rotateRightHandler.stop);
+            rotateRightBtn.addEventListener('mouseleave', rotateRightHandler.stop);
+            
+            offsetXLeftBtn.addEventListener('mousedown', offsetXLeftHandler.start);
+            offsetXLeftBtn.addEventListener('mouseup', offsetXLeftHandler.stop);
+            offsetXLeftBtn.addEventListener('mouseleave', offsetXLeftHandler.stop);
+            
+            offsetXRightBtn.addEventListener('mousedown', offsetXRightHandler.start);
+            offsetXRightBtn.addEventListener('mouseup', offsetXRightHandler.stop);
+            offsetXRightBtn.addEventListener('mouseleave', offsetXRightHandler.stop);
+            
+            offsetYDownBtn.addEventListener('mousedown', offsetYDownHandler.start);
+            offsetYDownBtn.addEventListener('mouseup', offsetYDownHandler.stop);
+            offsetYDownBtn.addEventListener('mouseleave', offsetYDownHandler.stop);
+            
+            offsetYUpBtn.addEventListener('mousedown', offsetYUpHandler.start);
+            offsetYUpBtn.addEventListener('mouseup', offsetYUpHandler.stop);
+            offsetYUpBtn.addEventListener('mouseleave', offsetYUpHandler.stop);
+            
+            scaleDownBtn.addEventListener('mousedown', scaleDownHandler.start);
+            scaleDownBtn.addEventListener('mouseup', scaleDownHandler.stop);
+            scaleDownBtn.addEventListener('mouseleave', scaleDownHandler.stop);
+            
+            scaleUpBtn.addEventListener('mousedown', scaleUpHandler.start);
+            scaleUpBtn.addEventListener('mouseup', scaleUpHandler.stop);
+            scaleUpBtn.addEventListener('mouseleave', scaleUpHandler.stop);
+            
+            // Обработчики для тач-устройств
+            rotateLeftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rotateLeftHandler.start(); });
+            rotateLeftBtn.addEventListener('touchend', (e) => { e.preventDefault(); rotateLeftHandler.stop(); });
+            rotateLeftBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); rotateLeftHandler.stop(); });
+            
+            rotateRightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); rotateRightHandler.start(); });
+            rotateRightBtn.addEventListener('touchend', (e) => { e.preventDefault(); rotateRightHandler.stop(); });
+            rotateRightBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); rotateRightHandler.stop(); });
+            
+            offsetXLeftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetXLeftHandler.start(); });
+            offsetXLeftBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetXLeftHandler.stop(); });
+            offsetXLeftBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetXLeftHandler.stop(); });
+            
+            offsetXRightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetXRightHandler.start(); });
+            offsetXRightBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetXRightHandler.stop(); });
+            offsetXRightBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetXRightHandler.stop(); });
+            
+            offsetYDownBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetYDownHandler.start(); });
+            offsetYDownBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetYDownHandler.stop(); });
+            offsetYDownBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetYDownHandler.stop(); });
+            
+            offsetYUpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); offsetYUpHandler.start(); });
+            offsetYUpBtn.addEventListener('touchend', (e) => { e.preventDefault(); offsetYUpHandler.stop(); });
+            offsetYUpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); offsetYUpHandler.stop(); });
+            
+            scaleDownBtn.addEventListener('touchstart', (e) => { e.preventDefault(); scaleDownHandler.start(); });
+            scaleDownBtn.addEventListener('touchend', (e) => { e.preventDefault(); scaleDownHandler.stop(); });
+            scaleDownBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); scaleDownHandler.stop(); });
+            
+            scaleUpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); scaleUpHandler.start(); });
+            scaleUpBtn.addEventListener('touchend', (e) => { e.preventDefault(); scaleUpHandler.stop(); });
+            scaleUpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); scaleUpHandler.stop(); });
             
             document.getElementById('texture-reset').addEventListener('click', () => {
                 if (selectedFaceIndex < 0) return;
-                window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0 };
+                window.textureSettings[selectedFaceIndex] = { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
                 updateTextureForFace(selectedFaceIndex);
             });
             
             document.getElementById('texture-copy-values').addEventListener('click', () => {
                 if (selectedFaceIndex < 0) return;
-                const faceSettings = window.textureSettings[selectedFaceIndex] || { rotation: 0, offsetX: 0, offsetY: 0 };
-                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)} };`;
+                const faceSettings = window.textureSettings[selectedFaceIndex] || { rotation: 0, offsetX: 0, offsetY: 0, scale: 1.0 };
+                const code = `window.textureSettings[${selectedFaceIndex}] = { rotation: ${faceSettings.rotation.toFixed(6)}, offsetX: ${faceSettings.offsetX.toFixed(6)}, offsetY: ${faceSettings.offsetY.toFixed(6)}, scale: ${(faceSettings.scale || 1.0).toFixed(6)} };`;
                 navigator.clipboard.writeText(code).then(() => {
                     alert('Значения скопированы в буфер обмена!');
                 }).catch(() => {
