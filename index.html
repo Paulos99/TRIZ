@@ -1048,21 +1048,12 @@
                     texture.magFilter = THREE.LinearFilter;
                     texture.needsUpdate = true;
                     
-                    // Применяем ориентацию грани к текстуре (как на фото примере)
-                    // Сначала сбрасываем все трансформации
+                    // ПРОСТОЙ ПОДХОД: Применяем текстуру с минимальными трансформациями
+                    // Сбрасываем все трансформации
                     texture.offset.set(0, 0);
                     texture.repeat.set(1, 1);
                     texture.center.set(0.5, 0.5);
-                    texture.rotation = 0;
-                    
-                    // Зеркальное отражение по горизонтали для всех текстур
-                    // Применяем ДО поворота, чтобы правильно ориентировать текстуру
-                    texture.offset.x = 1;
-                    texture.repeat.x = -1;
-                    
-                    // Применяем поворот для правильной ориентации текстуры 2111x2001
-                    // Поворот применяется вокруг центра текстуры ПОСЛЕ отражения
-                    texture.rotation = orientation.rotation;
+                    texture.rotation = orientation.rotation || 0;
                     
                     // Убеждаемся, что текстура обновится
                     texture.needsUpdate = true;
@@ -1258,49 +1249,45 @@
                     console.log('UV-координаты установлены в центр для всех вершин (упрощенный подход)');
                 }
             } else {
+                // НОВЫЙ ПРОСТОЙ ПОДХОД: Используем стандартные UV из геометрии или создаем простые UV [0,1]
+                // для каждой грани, чтобы текстура покрывала всю грань
                 
-                // Создаем или обновляем UV-атрибут
-                const uvCount = positions.count;
                 let uv = geometry.attributes.uv;
                 
                 if (!uv) {
+                    const uvCount = positions.count;
                     uv = new THREE.BufferAttribute(new Float32Array(uvCount * 2), 2);
                     geometry.setAttribute('uv', uv);
                     console.log('UV-атрибут создан');
                 }
                 
-                // Для каждой группы (грани) вычисляем правильные UV-координаты
+                // Для каждой грани устанавливаем простые UV-координаты [0,1]
+                // чтобы текстура покрывала всю грань
                 for (let groupIndex = 0; groupIndex < geometry.groups.length; groupIndex++) {
                     const group = geometry.groups[groupIndex];
                     
-                    // Собираем ВСЕ индексы вершин для этой группы (включая повторяющиеся)
-                    const allVertexIndices = [];
+                    // Собираем все уникальные индексы вершин для этой грани
                     const vertexSet = new Set();
-                    const uniqueVertexIndices = [];
                     
                     for (let i = 0; i < group.count; i++) {
                         const indexPos = group.start + i;
                         if (indexPos < indices.count) {
                             const vertexIndex = indices.getX(indexPos);
-                            allVertexIndices.push(vertexIndex);
-                            if (!vertexSet.has(vertexIndex)) {
-                                vertexSet.add(vertexIndex);
-                                uniqueVertexIndices.push(vertexIndex);
-                            }
+                            vertexSet.add(vertexIndex);
                         }
                     }
                     
-                    if (uniqueVertexIndices.length < 3) continue;
+                    // Получаем вершины грани для вычисления ориентации
+                    const vertexIndices = Array.from(vertexSet);
+                    if (vertexIndices.length < 3) continue;
                     
-                    // Получаем уникальные вершины грани для вычисления плоскости и ориентации
-                    const vertices = uniqueVertexIndices.map(idx => new THREE.Vector3(
+                    const vertices = vertexIndices.map(idx => new THREE.Vector3(
                         positions.getX(idx),
                         positions.getY(idx),
                         positions.getZ(idx)
                     ));
                     
-                    // НОВАЯ ЛОГИКА: Формируем грань отдельно в правильной ориентации (как на фото примере)
-                    // Вычисляем нормаль грани (направлена наружу)
+                    // Вычисляем нормаль и центр грани для ориентации
                     const v0 = vertices[0];
                     const v1 = vertices[1];
                     const v2 = vertices[2];
@@ -1309,19 +1296,16 @@
                         .cross(new THREE.Vector3().subVectors(v2, v0))
                         .normalize();
                     
-                    // Вычисляем центр грани
                     const center = new THREE.Vector3();
                     vertices.forEach(v => center.add(v));
                     center.divideScalar(vertices.length);
                     
-                    // Убеждаемся, что нормаль направлена наружу (от центра додекаэдра)
                     const toCenter = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), center);
                     if (normal.dot(toCenter) > 0) {
                         normal.negate();
                     }
                     
-                    // СОЗДАЕМ ПРАВИЛЬНУЮ ОРИЕНТАЦИЮ ГРАНИ (как на фото примере)
-                    // Находим верхнюю вершину (с максимальным Y в мировых координатах)
+                    // Находим верхнюю вершину для ориентации
                     let topVertexIndex = 0;
                     let maxY = vertices[0].y;
                     for (let i = 1; i < vertices.length; i++) {
@@ -1331,11 +1315,10 @@
                         }
                     }
                     
-                    // Вычисляем направление от центра к верхней вершине
                     const topVertex = vertices[topVertexIndex];
                     const toTop = new THREE.Vector3().subVectors(topVertex, center).normalize();
                     
-                    // Создаем локальную систему координат на грани для правильной ориентации
+                    // Создаем локальную систему координат
                     const worldUp = new THREE.Vector3(0, 1, 0);
                     let right = new THREE.Vector3().crossVectors(worldUp, normal).normalize();
                     if (right.length() < 0.1) {
@@ -1344,7 +1327,6 @@
                     }
                     const forward = new THREE.Vector3().crossVectors(normal, right).normalize();
                     
-                    // Проецируем направление к верхней вершине на плоскость грани
                     const componentAlongNormal = toTop.dot(normal);
                     const toTopInPlane = new THREE.Vector3()
                         .subVectors(toTop, normal.clone().multiplyScalar(componentAlongNormal));
@@ -1355,25 +1337,25 @@
                         toTopInPlane.normalize();
                     }
                     
-                    // Вычисляем угол поворота для правильной ориентации текстуры
                     const dotUp = toTopInPlane.dot(forward);
                     const dotRight = toTopInPlane.dot(right);
                     const faceRotation = Math.atan2(dotUp, dotRight);
                     
-                    // Сохраняем ориентацию грани для применения к текстуре
+                    // Сохраняем ориентацию
                     faceOrientations[groupIndex] = {
                         rotation: faceRotation,
                         flipX: false,
                         flipY: false
                     };
                     
-                    // Проецируем вершины на плоскость и вычисляем UV
+                    // ПРОСТОЙ ПОДХОД: Устанавливаем UV [0,1] для всех вершин грани
+                    // Используем простую проекцию: каждая вершина получает UV на основе её позиции
+                    // относительно центра грани в локальной системе координат
                     let minU = Infinity, maxU = -Infinity;
                     let minV = Infinity, maxV = -Infinity;
-                    const vertexUVMap = new Map(); // Карта UV-координат для каждой вершины
+                    const vertexUVMap = new Map();
                     
-                    // Вычисляем UV для всех уникальных вершин грани
-                    uniqueVertexIndices.forEach((vertexIndex, idx) => {
+                    vertexIndices.forEach((vertexIndex, idx) => {
                         const vertex = vertices[idx];
                         const localPos = new THREE.Vector3().subVectors(vertex, center);
                         const u = localPos.dot(right);
@@ -1385,11 +1367,10 @@
                         maxV = Math.max(maxV, v);
                     });
                     
-                    // Нормализуем UV-координаты к диапазону [0, 1], чтобы покрыть всю грань
                     const rangeU = maxU - minU || 1;
                     const rangeV = maxV - minV || 1;
                     
-                    // Применяем UV-координаты ко ВСЕМ индексам в группе (не только к уникальным вершинам)
+                    // Применяем UV ко всем индексам в группе
                     for (let i = 0; i < group.count; i++) {
                         const indexPos = group.start + i;
                         if (indexPos < indices.count) {
@@ -1397,50 +1378,18 @@
                             const uvData = vertexUVMap.get(vertexIndex);
                             
                             if (uvData) {
-                                // Нормализуем к [0, 1] - это покрывает всю грань
-                                // Минимум должен стать 0, максимум должен стать 1
+                                // Простая нормализация к [0, 1]
                                 const normalizedU = rangeU > 0 ? (uvData.u - minU) / rangeU : 0.5;
                                 const normalizedV = rangeV > 0 ? (uvData.v - minV) / rangeV : 0.5;
                                 
-                                // Зажимаем в диапазон [0, 1] для безопасности
-                                const finalU = Math.max(0, Math.min(1, normalizedU));
-                                const finalV = Math.max(0, Math.min(1, normalizedV));
-                                
-                                uv.setXY(vertexIndex, finalU, finalV);
-                            } else {
-                                // Если UV данные не найдены, устанавливаем центр
-                                uv.setXY(vertexIndex, 0.5, 0.5);
+                                uv.setXY(vertexIndex, normalizedU, normalizedV);
                             }
                         }
                     }
-                    
-                    // Проверяем, что все UV правильно нормализованы
-                    let uvMin = Infinity, uvMax = -Infinity;
-                    let vvMin = Infinity, vvMax = -Infinity;
-                    let processedCount = 0;
-                    
-                    for (let i = 0; i < group.count; i++) {
-                        const indexPos = group.start + i;
-                        if (indexPos < indices.count) {
-                            const vertexIndex = indices.getX(indexPos);
-                            const u = uv.getX(vertexIndex);
-                            const v = uv.getY(vertexIndex);
-                            if (u !== undefined && v !== undefined) {
-                                uvMin = Math.min(uvMin, u);
-                                uvMax = Math.max(uvMax, u);
-                                vvMin = Math.min(vvMin, v);
-                                vvMax = Math.max(vvMax, v);
-                                processedCount++;
-                            }
-                        }
-                    }
-                    
-                    console.log(`Грань ${groupIndex + 1}: исходный UV диапазон U=[${minU.toFixed(3)}, ${maxU.toFixed(3)}], V=[${minV.toFixed(3)}, ${maxV.toFixed(3)}], rangeU=${rangeU.toFixed(3)}, rangeV=${rangeV.toFixed(3)}`);
-                    console.log(`Грань ${groupIndex + 1}: финальный UV диапазон U=[${uvMin.toFixed(3)}, ${uvMax.toFixed(3)}], V=[${vvMin.toFixed(3)}, ${vvMax.toFixed(3)}], обработано вершин=${processedCount}`);
                 }
                 
                 uv.needsUpdate = true;
-                console.log('UV-координаты пересчитаны для всех граней');
+                console.log('UV-координаты установлены для всех граней (простой подход)');
                 console.log('Количество обработанных групп:', geometry.groups.length);
                 
                 // #region agent log
