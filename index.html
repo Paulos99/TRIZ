@@ -1026,7 +1026,7 @@
                     }
                     
                     // Настраиваем текстуру для правильного отображения пятиугольника
-                    // Изображение 2111x2001, пятиугольник с прозрачным фоном
+                    // Изображение 2000x2000, пятиугольник с прозрачным фоном
                     texture.wrapS = THREE.ClampToEdgeWrapping;
                     texture.wrapT = THREE.ClampToEdgeWrapping;
                     texture.flipY = false; // Важно для правильной ориентации
@@ -1070,7 +1070,7 @@
             console.log('Все текстуры загружены:', textures.length);
             
             // Создаем материалы с текстурами для каждой грани
-            // НОВАЯ ЛОГИКА: Применяем текстуру 2111x2001 с правильной ориентацией из faceOrientations
+            // НОВАЯ ЛОГИКА: Применяем текстуру 2000x2000 с правильной ориентацией из faceOrientations
             const newMaterials = [];
             for (let i = 0; i < 12; i++) {
                 const texture = textures[i];
@@ -1122,7 +1122,6 @@
                 // Используем MeshBasicMaterial для более надежного отображения текстур
                 newMaterials.push(new THREE.MeshBasicMaterial({
                     map: texture,
-                    color: 0x404040, // Темно-серый цвет для видимости границ текстур
                     side: THREE.DoubleSide,
                     transparent: true, // Включаем прозрачность для PNG
                     opacity: 1.0,
@@ -1157,7 +1156,6 @@
             
             newMaterials.push(new THREE.MeshStandardMaterial({
                 map: tempTexture,
-                color: 0x404040, // Темно-серый цвет для видимости границ текстур
                 side: THREE.DoubleSide,
                 transparent: false,
                 opacity: 1.0,
