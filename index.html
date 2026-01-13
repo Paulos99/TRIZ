@@ -1122,6 +1122,7 @@
                 // Используем MeshBasicMaterial для более надежного отображения текстур
                 newMaterials.push(new THREE.MeshBasicMaterial({
                     map: texture,
+                    color: 0x404040, // Темно-серый цвет для видимости границ текстур
                     side: THREE.DoubleSide,
                     transparent: true, // Включаем прозрачность для PNG
                     opacity: 1.0,
@@ -1156,6 +1157,7 @@
             
             newMaterials.push(new THREE.MeshStandardMaterial({
                 map: tempTexture,
+                color: 0x404040, // Темно-серый цвет для видимости границ текстур
                 side: THREE.DoubleSide,
                 transparent: false,
                 opacity: 1.0,
