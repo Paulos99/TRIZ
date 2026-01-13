@@ -626,9 +626,6 @@
                 };
                 const errorName = errorNames[error] || `UNKNOWN(${error})`;
                 console.error(`[WebGL Error ${errorCount}] ${errorName}`);
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'WebGL ошибка обнаружена',data:{errorCode:error,errorName:errorName,errorCount:errorCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
             }
             return error;
         };
@@ -639,9 +636,6 @@
             originalError.apply(console, args);
             const errorStr = args.map(a => String(a)).join(' ');
             if (errorStr.includes('SecurityError') || errorStr.includes('Tainted') || errorStr.includes('texImage2D') || errorStr.includes('GL_INVALID')) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:477',message:'Критическая ошибка консоли',data:{errorMessage:errorStr},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
             }
         };
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -668,9 +662,6 @@
         
         document.getElementById('canvas-container').appendChild(canvas);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:339',message:'Canvas добавлен в DOM',data:{canvasInDOM:document.getElementById('canvas-container').contains(canvas),canvasDisplay:window.getComputedStyle(canvas).display,canvasVisibility:window.getComputedStyle(canvas).visibility,canvasOpacity:window.getComputedStyle(canvas).opacity,canvasZIndex:window.getComputedStyle(canvas).zIndex,canvasWidth:canvas.width,canvasHeight:canvas.height,containerWidth:window.getComputedStyle(document.getElementById('canvas-container')).width,containerHeight:window.getComputedStyle(document.getElementById('canvas-container')).height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         
         console.log('Рендерер инициализирован, размер:', window.innerWidth, 'x', window.innerHeight);
         console.log('Canvas элемент:', canvas);
@@ -806,9 +797,6 @@
         // Функция загрузки изображения с обработкой CORS
         function loadImageAsTexture(filename) {
             return new Promise((resolve, reject) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:612',message:'Начало загрузки текстуры',data:{filename:filename,currentURL:window.location.href,protocol:window.location.protocol},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
                 
                 const textureLoader = new THREE.TextureLoader();
                 
@@ -827,9 +815,6 @@
                 textureLoader.load(
                     texturePath,
                     (texture) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:619',message:'Текстура загружена через TextureLoader',data:{filename:filename,textureWidth:texture.image?.width,textureHeight:texture.image?.height,imageComplete:texture.image?.complete},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
                         
                         // Настраиваем текстуру для правильного отображения
                         texture.wrapS = THREE.ClampToEdgeWrapping;
@@ -846,9 +831,6 @@
                     },
                     undefined,
                     (error) => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:627',message:'TextureLoader не удалось, пробуем через Image',data:{filename:filename,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
                         
                         // Если не удалось, пробуем через Image и Canvas
                         const img = new Image();
@@ -860,9 +842,6 @@
                         }
                         
                         img.onload = function() {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:660',message:'Изображение загружено через Image',data:{filename:filename,imageWidth:img.width,imageHeight:img.height,imageSrc:img.src,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                            // #endregion
                             
                             // Для file:// протокола используем Image напрямую через Texture
                             // чтобы избежать проблем с "tainted canvas"
@@ -905,9 +884,6 @@
                         };
                         
                         img.onerror = function() {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:646',message:'Не удалось загрузить изображение, создаем заглушку',data:{filename:filename,lastTriedPath:img.src,pathIndex:pathIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                            // #endregion
                             
                             // Создаем заглушку
                             resolve(createPlaceholderTexture(filename));
@@ -966,18 +942,12 @@
                             }
                         }
                         
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:651',message:'Пробуем пути загрузки',data:{filename:filename,paths:paths,basePath:basePath},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                        // #endregion
                         
                         let pathIndex = 0;
                         const tryNextPath = () => {
                             if (pathIndex < paths.length) {
                                 const currentPath = paths[pathIndex++];
                                 console.log(`[${isFileProtocolLocal ? 'file://' : 'http'}] Пробуем загрузить ${filename} по пути: ${currentPath}`);
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:718',message:'Пробуем путь загрузки',data:{filename:filename,pathIndex:pathIndex-1,totalPaths:paths.length,currentPath:currentPath,isFileProtocol:isFileProtocolLocal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                                // #endregion
                                 img.src = currentPath;
                             } else {
                                 console.error(`[${isFileProtocolLocal ? 'file://' : 'http'}] Все пути для ${filename} исчерпаны, создаем заглушку`);
@@ -1034,17 +1004,6 @@
         console.log('Додекаэдр создан с зеленым материалом для теста');
         console.log('Всего объектов в сцене:', scene.children.length);
         
-        // #region agent log
-        const dodecahedronWorldMatrix = new THREE.Matrix4();
-        dodecahedron.updateMatrixWorld();
-        dodecahedronWorldMatrix.copy(dodecahedron.matrixWorld);
-        const cameraWorldMatrix = new THREE.Matrix4();
-        camera.updateMatrixWorld();
-        cameraWorldMatrix.copy(camera.matrixWorld);
-        const logVerticesCount = geometry.attributes?.position ? geometry.attributes.position.count / 3 : (geometry.vertices?.length || 0);
-        const logFacesCount = geometry.index ? geometry.index.count / 3 : (geometry.faces?.length || logVerticesCount / 3);
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:470',message:'Додекаэдр создан и добавлен',data:{inScene:scene.children.includes(dodecahedron),positionX:dodecahedron.position.x,positionY:dodecahedron.position.y,positionZ:dodecahedron.position.z,scaleX:dodecahedron.scale.x,scaleY:dodecahedron.scale.y,scaleZ:dodecahedron.scale.z,cameraX:camera.position.x,cameraY:camera.position.y,cameraZ:camera.position.z,cameraNear:camera.near,cameraFar:camera.far,cameraFov:camera.fov,geometryVertices:logVerticesCount,geometryFaces:logFacesCount,materialsCount:basicMaterials.length,materialType:basicMaterials[0]?.type,materialColor:basicMaterials[0]?.color?.getHex()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         
         // Сохраняем ссылку на додекаэдр для управления
         window.dodecahedron = dodecahedron;
@@ -1157,9 +1116,6 @@
             const filename = `${String(i).padStart(3, '0')}.png`;
             texturePromises.push(
                 loadImageAsTexture(filename).then(texture => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:843',message:'Текстура получена, настраиваем',data:{filename:filename,textureType:texture.constructor.name,hasImage:!!texture.image,imageWidth:texture.image?.width,imageHeight:texture.image?.height,isPlaceholder:texture.image?.width===512&&texture.image?.height===512},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                     
                     // Проверяем, не является ли это заглушкой
                     const isPlaceholder = texture.image && texture.image.width === 512 && texture.image.height === 512;
@@ -1192,9 +1148,6 @@
                     console.log(`✓ Текстура ${filename} загружена успешно (${loadedCount}/${totalTextures})${isPlaceholder ? ' [ЗАГЛУШКА]' : ''} - размер: ${texture.image?.width}x${texture.image?.height}`);
                     return texture;
                 }).catch(err => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:865',message:'Ошибка загрузки текстуры',data:{filename:filename,error:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                     
                     console.warn(`⚠ Не удалось загрузить ${filename}, используем заглушку:`, err);
                     // Используем пронумерованную текстуру как заглушку
@@ -1255,9 +1208,6 @@
                     // Убеждаемся, что текстура обновится
                     texture.needsUpdate = true;
                     
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:998',message:'Текстура применена с ориентацией',data:{faceIndex:i+1,textureType:texture.type,rotation:orientation.rotation,textureWidth:texture.image?.width,textureHeight:texture.image?.height},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
                 }
                 
                 // Включаем прозрачность для PNG с альфа-каналом
@@ -1329,9 +1279,6 @@
                 console.log('Первые 3 groups:', geometry.groups.slice(0, 3));
             }
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:633',message:'Проверка структуры геометрии',data:{hasIndex:hasIndex,totalIndices:totalIndices,totalFaces:totalFaces,facesPerGroup:facesPerGroup,indicesPerGroup:indicesPerGroup,existingGroupsCount:geometry.groups?.length||0,groups:geometry.groups?.map(g=>({start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             
             // Если индексный массив отсутствует, создаем его
             // В неиндексированной геометрии каждая вершина используется только один раз
@@ -1347,9 +1294,6 @@
                 geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
                 console.log('Индексный массив создан:', vertexCount, 'индексов');
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:667',message:'Индексный массив создан',data:{vertexCount:vertexCount,indexCreated:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-                // #endregion
             }
             
             // Создаем или обновляем groups для каждой грани
@@ -1365,9 +1309,6 @@
             console.log('Groups созданы/обновлены для додекаэдра:', geometry.groups.length, 'групп');
             console.log('Первые 3 groups:', geometry.groups.slice(0, 3).map(g => ({start: g.start, count: g.count, materialIndex: g.materialIndex})));
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:690',message:'Groups созданы после создания индекса',data:{groupsCount:geometry.groups.length,hasIndexAfter:geometry.index!==null&&geometry.index!==undefined,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-            // #endregion
             
             // Пересчитываем UV-координаты для правильного центрирования текстур на каждой грани
             const positions = geometry.attributes.position;
@@ -1396,9 +1337,6 @@
             console.log('geometry.index:', geometry.index);
             console.log('geometry.attributes.uv существует:', !!geometry.attributes.uv);
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:672',message:'Проверка UV пересчета',data:{hasPositions:!!positions,hasIndices:hasIndexForUV,positionsCount:positions?.count,indicesCount:indices?.count,groupsCount:geometry.groups?.length,hasUV:!!geometry.attributes.uv},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-            // #endregion
             
             if (!positions) {
                 console.warn('Не удалось получить позиции для пересчета UV');
@@ -1615,9 +1553,6 @@
                 console.log('UV-координаты установлены для всех граней (простой подход)');
                 console.log('Количество обработанных групп:', geometry.groups.length);
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:790',message:'UV пересчет завершен',data:{groupsProcessed:geometry.groups.length,uvAttributeExists:!!geometry.attributes.uv,uvCount:geometry.attributes.uv?.count},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-                // #endregion
             }
             
             // Применяем массив материалов
@@ -1639,14 +1574,8 @@
                 }
             });
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:810',message:'Проверка применения материалов',data:{materialsCount:newMaterials.length,groupsCount:geometry.groups.length,groups:geometry.groups.map((g,i)=>({index:i,start:g.start,count:g.count,materialIndex:g.materialIndex,hasMaterial:g.materialIndex>=0&&g.materialIndex<newMaterials.length}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-            // #endregion
             
             // #region agent log
-            const currentMaterialForLog = Array.isArray(window.dodecahedron.material) ? window.dodecahedron.material[0] : window.dodecahedron.material;
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:500',message:'Текстуры загружены',data:{texturesLoaded:textures.length,materialsReplaced:newMaterials.length,newMaterialType:currentMaterialForLog?.type,hasTexture:!!currentMaterialForLog?.map,isMaterialArray:Array.isArray(window.dodecahedron.material),materialCount:Array.isArray(window.dodecahedron.material)?window.dodecahedron.material.length:1},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             
         console.log('Белые пронумерованные текстуры применены');
         console.log('=== ДИАГНОСТИКА ПОСЛЕ ПРИМЕНЕНИЯ ТЕКСТУР ===');
@@ -1678,13 +1607,8 @@
             initTextureControls();
             
             // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'initFaceSelection и initFaceList выполнены',data:{ok:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         } catch (e) {
             console.error('Ошибка инициализации выбора граней:', e);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:988',message:'Ошибка initFaceSelection/initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-            // #endregion
         }
         
         // Начальная ориентация на грань 12 (индекс 11)
@@ -1740,9 +1664,6 @@
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1112',message:'mousemove вращение',data:{deltaX:deltaX,deltaY:deltaY,prevX:previousMousePosition.x,prevY:previousMousePosition.y,currX:e.clientX,currY:e.clientY,rotationX:window.dodecahedron.rotation.x,rotationY:window.dodecahedron.rotation.y},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
                 
                 // Мгновенное вращение при перетаскивании (для отзывчивости)
                 window.dodecahedron.rotation.y -= deltaX * rotationSpeed; // Инвертировано по горизонтали
@@ -2526,9 +2447,6 @@
             const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
             targetRotation = { x: euler.x, y: euler.y, z: euler.z };
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1368',message:'Вращение грани вокруг оси камеры',data:{selectedFaceIndex:selectedFaceIndex,angle:angle,axis:{x:worldAxis.x,y:worldAxis.y,z:worldAxis.z},targetRotation:targetRotation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
-            // #endregion
         }
         
         // Функция плавного вращения
@@ -2645,14 +2563,8 @@
                 selectedFaceIndex = 0;
                 updateFaceListSelection();
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'initFaceList успешно выполнена',data:{items:12},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
             } catch (e) {
                 console.error('Ошибка initFaceList:', e);
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1517',message:'Ошибка initFaceList',data:{error:String(e)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'L'})}).catch(()=>{});
-                // #endregion
             }
         }
 
@@ -2704,9 +2616,7 @@
                     }
                 });
                 
-                fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1055',message:'Render вызван',data:{renderCallCount:renderCallCount,glContext:gl?true:false,glVersion:gl?.getParameter(gl.VERSION),glVendor:gl?.getParameter(gl.VENDOR),sceneChildren:scene.children.length,dodecahedronVisible:window.dodecahedron?.visible,dodecahedronInScene:scene.children.includes(window.dodecahedron),dodecahedronInFrustum:dodecahedronInFrustum,bboxMinX:dodecahedronBoundingBox?.min?.x,bboxMinY:dodecahedronBoundingBox?.min?.y,bboxMinZ:dodecahedronBoundingBox?.min?.z,bboxMaxX:dodecahedronBoundingBox?.max?.x,bboxMaxY:dodecahedronBoundingBox?.max?.y,bboxMaxZ:dodecahedronBoundingBox?.max?.z,sceneObjects:sceneObjects},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             }
-            // #endregion
         }
         
         console.log('Запуск анимации...');
@@ -2714,9 +2624,6 @@
         console.log('Камера:', camera);
         console.log('Рендерер:', renderer);
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c25d8475-99b1-4b14-a6fc-1fab7f8194f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:920',message:'Анимация запущена',data:{rendererType:renderer.constructor.name,rendererAutoClear:renderer.autoClear,rendererAutoClearColor:renderer.autoClearColor,rendererAutoClearDepth:renderer.autoClearDepth,canvasElement:renderer.domElement?true:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         
         animate();
     </script>
