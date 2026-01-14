@@ -1641,7 +1641,6 @@
         let angularVelocity = { x: 0, y: 0, z: 0 };
         const friction = 0.95; // Коэффициент трения (0.95 = медленное затухание)
         const minVelocity = 0.001; // Минимальная скорость для остановки
-        let lastDeltaTime = 0;
         
         // Функция регистрации взаимодействия (предупреждение убрано)
         function registerInteraction() {
@@ -2821,13 +2820,19 @@
         
         // Анимация
         let renderCallCount = 0;
-        let lastDeltaTime = performance.now();
+        let lastDeltaTime = null;
         function animate(currentTime) {
             requestAnimationFrame(animate);
             
+            // Инициализация времени при первом вызове
+            if (lastDeltaTime === null) {
+                lastDeltaTime = currentTime;
+                return; // Пропускаем первый кадр для правильной инициализации
+            }
+            
             // Оптимизация FPS для мобильных устройств
             if (isMobile) {
-                if (!lastFrameTime) lastFrameTime = currentTime;
+                if (lastFrameTime === 0) lastFrameTime = currentTime;
                 const elapsed = currentTime - lastFrameTime;
                 if (elapsed < frameInterval) {
                     return; // Пропускаем кадр для снижения FPS
@@ -2836,9 +2841,7 @@
             }
             
             const deltaTime = isMobile ? frameInterval / 1000 : ((currentTime - lastDeltaTime) / 1000) || 0.016;
-            if (deltaTime > 0) {
-                lastDeltaTime = currentTime;
-            }
+            lastDeltaTime = currentTime;
             
             // Применяем инерцию для плавного вращения как глобус
             applyInertia(deltaTime);
