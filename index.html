@@ -1,4 +1,4 @@
-![1768318049761](image/index/1768318049761.png)![1768318051962](image/index/1768318051962.png)![1768318056109](image/index/1768318056109.png)![1768318061156](image/index/1768318061156.png)![1768318071234](image/index/1768318071234.png)![1768318085907](image/index/1768318085907.png)<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -1632,6 +1632,7 @@
         
         // Управление мышью и тачем
         let isDragging = false;
+        let isTouchDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let rotationSpeed = 0.007; // Удобная чувствительность для вращения мышью
         let initialCameraZ = 7; // Увеличено для более отдаленного вида
@@ -1783,6 +1784,7 @@
             
             if (e.touches.length === 2 && isTwoFingerGesture && window.dodecahedron) {
                 // Два пальца: zoom и rotate
+                isTouchDragging = true;
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
                 
@@ -1831,6 +1833,7 @@
                 
             } else if (e.touches.length === 1 && touchStart && !isTwoFingerGesture && window.dodecahedron) {
                 // Один палец: вращение модели
+                isTouchDragging = true;
                 const deltaX = e.touches[0].clientX - touchStart.x;
                 const deltaY = e.touches[0].clientY - touchStart.y;
                 
@@ -1862,6 +1865,7 @@
             
             if (e.touches.length === 0) {
                 // Все пальцы убраны
+                isTouchDragging = false;
                 touchStart = null;
                 touchStartDistance = 0;
                 lastTouchDistance = 0;
