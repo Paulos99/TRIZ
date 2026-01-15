@@ -1611,36 +1611,30 @@
             console.error('Ошибка инициализации выбора граней:', e);
         }
         
-        // Начальная инициализация - свободное вращение
+        // Начальная ориентация на грань 12 (индекс 11)
         setTimeout(() => {
             if (window.dodecahedron) {
                 camera.position.set(0, 0, initialCameraZ);
-                // По умолчанию - свободное вращение (режим глобуса)
-                rotationMode = 'free';
-                isFaceMode = false;
-                selectedFaceIndex = -1;
                 deselectFace();
-                // Не выбираем грань по умолчанию - модель доступна для свободного взаимодействия
+                centerOnFace(11); // Грань 12 имеет индекс 11
+                selectFace(11);   // Выделяем грань 12
+                // Для грани 12 поворот не требуется (0)
             }
         }, 100); // Небольшая задержка для гарантии, что все инициализировано
 
         // Определение мобильного устройства
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const DEBUG = !isMobile;
         
-        // Оптимизация производительности для мобильных устройств
-        const performanceMode = isMobile ? 'mobile' : 'desktop';
-        const targetFPS = isMobile ? 30 : 60; // Снижаем FPS на мобильных
-        let lastFrameTime = 0;
+        // Производительность: на слабых мобильных режем нагрузку
+        // 1) меньше пикселей рендерить (главное ускорение)
+        // 2) ограничиваем FPS
+        if (isMobile) {
+            renderer.setPixelRatio(1);
+        }
+        const targetFPS = isMobile ? 30 : 60;
         const frameInterval = 1000 / targetFPS;
-        
-        // Режимы работы
-        let rotationMode = 'free'; // 'free' - свободное вращение, 'face' - режим грани
-        let isFaceMode = false; // Флаг режима плоскости грани
-        
-        // Система инерции для плавного вращения как глобус
-        let angularVelocity = { x: 0, y: 0, z: 0 };
-        const friction = 0.95; // Коэффициент трения (0.95 = медленное затухание)
-        const minVelocity = 0.001; // Минимальная скорость для остановки
+        let lastRenderTime = 0;
         
         // Функция регистрации взаимодействия (предупреждение убрано)
         function registerInteraction() {
@@ -1651,12 +1645,8 @@
         let isDragging = false;
         let isTouchDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
-        let rotationSpeed = 0.007; // Удобная чувствительность для вращения мышью
+        let rotationSpeed = 0.0042; // -40% к скорости вращения для удобства взаимодействия
         let initialCameraZ = 7; // Увеличено для более отдаленного вида
-        
-        // Переменные для инерции
-        let lastRotation = { x: 0, y: 0, z: 0 };
-        let velocityTracker = { x: 0, y: 0, time: 0 };
         
         // Вращение мышью
         let mouseDownTime = 0;
@@ -1667,18 +1657,6 @@
             mouseDownPosition = { x: e.clientX, y: e.clientY };
             previousMousePosition = { x: e.clientX, y: e.clientY };
             isDragging = false;
-            
-            // Останавливаем инерцию при начале нового взаимодействия
-            angularVelocity = { x: 0, y: 0, z: 0 };
-            velocityTracker = { x: 0, y: 0, time: Date.now() };
-            
-            if (window.dodecahedron) {
-                lastRotation = {
-                    x: window.dodecahedron.rotation.x,
-                    y: window.dodecahedron.rotation.y,
-                    z: window.dodecahedron.rotation.z
-                };
-            }
         });
 
         renderer.domElement.addEventListener('mousemove', (e) => {
@@ -1694,61 +1672,28 @@
                 }
             }
             
-            if (isDragging && window.dodecahedron && rotationMode === 'free') {
-                const deltaX = e.clientX - previousMousePosition.x;
-                const deltaY = e.clientY - previousMousePosition.y;
-                const currentTime = Date.now();
-                const deltaTime = currentTime - velocityTracker.time;
-                
-                if (deltaTime > 0) {
-                    // Вычисляем угловую скорость для инерции
-                    const rotX = deltaY * rotationSpeed;
-                    const rotY = -deltaX * rotationSpeed;
-                    
-                    angularVelocity.x = rotX / (deltaTime / 1000);
-                    angularVelocity.y = rotY / (deltaTime / 1000);
-                    
-                    velocityTracker.x = deltaX;
-                    velocityTracker.y = deltaY;
-                    velocityTracker.time = currentTime;
-                }
-                
-                // Вращение модели как глобус (используем кватернионы для правильной физики)
-                const rotationAxis = new THREE.Vector3(deltaY, -deltaX, 0).normalize();
-                const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * rotationSpeed;
-                
-                if (rotationAngle > 0.0001) {
-                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
-                    window.dodecahedron.quaternion.multiplyQuaternions(rotationQuaternion, window.dodecahedron.quaternion);
-                    
-                    // Обновляем rotation из кватерниона
-                    const euler = new THREE.Euler().setFromQuaternion(window.dodecahedron.quaternion);
-                    window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
-                    
-                    // Синхронизируем targetRotation и currentRotation
-                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    currentRotation = { x: euler.x, y: euler.y, z: euler.z };
-                }
-                
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-                registerInteraction();
-            } else if (isDragging && window.dodecahedron && rotationMode === 'face' && selectedFaceIndex >= 0) {
-                // В режиме грани - вращаем грань в плоскости
+            if (isDragging && window.dodecahedron) {
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
                 
-                // Вращение грани вокруг оси камеры
-                const worldAxis = new THREE.Vector3(0, 0, -1);
-                const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * rotationSpeed * 0.5;
-                const rotationDirection = Math.atan2(deltaY, deltaX);
                 
-                // Вращаем вокруг оси камеры
-                const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, rotationAngle * Math.cos(rotationDirection));
-                const currentQuaternion = window.dodecahedron.quaternion.clone();
-                const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+                // Мгновенное вращение при перетаскивании (для отзывчивости)
+                window.dodecahedron.rotation.y -= deltaX * rotationSpeed; // Инвертировано по горизонтали
+                window.dodecahedron.rotation.x += deltaY * rotationSpeed;
                 
-                const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
-                targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+                // Нормализация углов для предотвращения накопления
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
+                }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation с текущим rotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
                 
                 previousMousePosition = { x: e.clientX, y: e.clientY };
                 registerInteraction();
@@ -1756,18 +1701,11 @@
         });
 
         renderer.domElement.addEventListener('mouseup', () => {
-            if (isDragging && rotationMode === 'free') {
-                // При отпускании сохраняем инерцию
-                // angularVelocity уже вычислена в mousemove
-            }
             isDragging = false;
-            mouseDownPosition = null;
+            // mouseDownPosition НЕ сбрасываем здесь: иначе click не отличит drag от клика
         });
 
         renderer.domElement.addEventListener('mouseleave', () => {
-            if (isDragging && rotationMode === 'free') {
-                // При уходе мыши сохраняем инерцию
-            }
             isDragging = false;
             mouseDownPosition = null;
         });
@@ -1806,13 +1744,9 @@
         renderer.domElement.addEventListener('touchstart', (e) => {
             e.preventDefault();
             
-            // Останавливаем инерцию при начале нового взаимодействия
-            angularVelocity = { x: 0, y: 0, z: 0 };
-            
             if (e.touches.length === 2) {
                 // Два пальца: начало жеста zoom/rotate
                 isTwoFingerGesture = true;
-                isTouchDragging = true;
                 
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
@@ -1838,26 +1772,15 @@
                         y: window.dodecahedron.rotation.y,
                         z: window.dodecahedron.rotation.z
                     };
-                    lastRotation = {
-                        x: window.dodecahedron.rotation.x,
-                        y: window.dodecahedron.rotation.y,
-                        z: window.dodecahedron.rotation.z
-                    };
                 }
                 
                 registerInteraction();
             } else if (e.touches.length === 1) {
                 // Один палец: простое перетаскивание для вращения
                 isTwoFingerGesture = false;
-                isTouchDragging = true;
                 touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 if (window.dodecahedron) {
                     touchStartRotation = {
-                        x: window.dodecahedron.rotation.x,
-                        y: window.dodecahedron.rotation.y,
-                        z: window.dodecahedron.rotation.z
-                    };
-                    lastRotation = {
                         x: window.dodecahedron.rotation.x,
                         y: window.dodecahedron.rotation.y,
                         z: window.dodecahedron.rotation.z
@@ -1872,6 +1795,7 @@
             
             if (e.touches.length === 2 && isTwoFingerGesture && window.dodecahedron) {
                 // Два пальца: zoom и rotate
+                isTouchDragging = true;
                 const touch1 = e.touches[0];
                 const touch2 = e.touches[1];
                 
@@ -1898,31 +1822,23 @@
                 while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
                 
                 if (Math.abs(angleDelta) > 0.001) {
-                    // ИСПРАВЛЕНО: убрана инверсия - теперь вращение соответствует движению пальцев
-                    // ИЗМЕНЕНО: если выбрана грань, вращаем грань (faceRotation), иначе - всю модель
-                    if (rotationMode === 'face' && selectedFaceIndex >= 0) {
-                        // Вращение грани в плоскости (как монетка)
-                        const worldAxis = new THREE.Vector3(0, 0, -1); // ось вдоль взгляда камеры
-                        const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, -angleDelta * 1.2);
-                        const currentQuaternion = window.dodecahedron.quaternion.clone();
-                        const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
-                        
-                        const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
-                        targetRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    } else {
-                        // Вращение всей модели (свободный режим)
-                        const rotationSensitivity = 1.2;
-                        window.dodecahedron.rotation.y -= angleDelta * rotationSensitivity; // Исправлена инверсия
-                        
-                        // Нормализация угла Y
-                        if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
-                            window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
-                        }
-                        
-                        // Синхронизируем targetRotation и currentRotation
-                        targetRotation.y = window.dodecahedron.rotation.y;
-                        currentRotation.y = window.dodecahedron.rotation.y;
-                    }
+                    // ДВА ПАЛЬЦА (twist): плоское вращение как faceRotation (в плоскости экрана),
+                    // а не вокруг оси Y.
+                    // Также исправляем инверсию (по часовой => поворот по часовой).
+                    const rotationSensitivity = 0.72; // 1.2 * 0.6 (снижение скорости на 40%)
+                    const worldAxis = new THREE.Vector3(0, 0, -1); // ось вдоль взгляда камеры
+                    
+                    const currentQuaternion = window.dodecahedron.quaternion.clone();
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, -angleDelta * rotationSensitivity);
+                    const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
+                    window.dodecahedron.quaternion.copy(newQuaternion);
+                    
+                    const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
+                    window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
+                    
+                    // Синхронизируем targetRotation и currentRotation
+                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+                    currentRotation = { x: euler.x, y: euler.y, z: euler.z };
                 }
                 
                 // Обновляем значения для следующей итерации
@@ -1935,50 +1851,25 @@
                 isTouchDragging = true;
                 const deltaX = e.touches[0].clientX - touchStart.x;
                 const deltaY = e.touches[0].clientY - touchStart.y;
-                const currentTime = Date.now();
-                const deltaTime = currentTime - (velocityTracker.time || currentTime);
                 
-                if (rotationMode === 'free') {
-                    // Вращение как глобус с инерцией
-                    if (deltaTime > 0) {
-                        const rotX = deltaY * 0.01;
-                        const rotY = -deltaX * 0.01;
-                        
-                        angularVelocity.x = rotX / (deltaTime / 1000);
-                        angularVelocity.y = rotY / (deltaTime / 1000);
-                        
-                        velocityTracker.x = deltaX;
-                        velocityTracker.y = deltaY;
-                        velocityTracker.time = currentTime;
-                    }
-                    
-                    // Вращение модели как глобус
-                    const rotationAxis = new THREE.Vector3(deltaY, -deltaX, 0).normalize();
-                    const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.01;
-                    
-                    if (rotationAngle > 0.0001) {
-                        const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(rotationAxis, rotationAngle);
-                        window.dodecahedron.quaternion.multiplyQuaternions(rotationQuaternion, window.dodecahedron.quaternion);
-                        
-                        const euler = new THREE.Euler().setFromQuaternion(window.dodecahedron.quaternion);
-                        window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
-                        
-                        targetRotation = { x: euler.x, y: euler.y, z: euler.z };
-                        currentRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    }
-                } else if (rotationMode === 'face' && selectedFaceIndex >= 0) {
-                    // В режиме грани - вращаем грань в плоскости
-                    const worldAxis = new THREE.Vector3(0, 0, -1);
-                    const rotationAngle = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.005;
-                    const rotationDirection = Math.atan2(deltaY, deltaX);
-                    
-                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, rotationAngle * Math.cos(rotationDirection));
-                    const currentQuaternion = window.dodecahedron.quaternion.clone();
-                    const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
-                    
-                    const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
-                    targetRotation = { x: euler.x, y: euler.y, z: euler.z };
+                // Вращение с правильной чувствительностью (инвертировано по горизонтали)
+                const sensitivity = 0.006; // -40%
+                window.dodecahedron.rotation.y = touchStartRotation.y - deltaX * sensitivity;
+                window.dodecahedron.rotation.x = touchStartRotation.x + deltaY * sensitivity;
+                
+                // Нормализация углов
+                if (Math.abs(window.dodecahedron.rotation.x) > Math.PI * 2) {
+                    window.dodecahedron.rotation.x = window.dodecahedron.rotation.x % (Math.PI * 2);
                 }
+                if (Math.abs(window.dodecahedron.rotation.y) > Math.PI * 2) {
+                    window.dodecahedron.rotation.y = window.dodecahedron.rotation.y % (Math.PI * 2);
+                }
+                
+                // Синхронизируем targetRotation и currentRotation
+                targetRotation.y = window.dodecahedron.rotation.y;
+                targetRotation.x = window.dodecahedron.rotation.x;
+                currentRotation.y = window.dodecahedron.rotation.y;
+                currentRotation.x = window.dodecahedron.rotation.x;
                 
                 registerInteraction();
             }
@@ -1988,8 +1879,7 @@
             e.preventDefault();
             
             if (e.touches.length === 0) {
-                // Все пальцы убраны - сохраняем инерцию для плавной остановки
-                // angularVelocity уже вычислена в touchmove
+                // Все пальцы убраны
                 isTouchDragging = false;
                 touchStart = null;
                 touchStartDistance = 0;
@@ -2071,15 +1961,8 @@
         function updateFaceListSelection() {
             if (!faceListElement) return;
             const items = faceListElement.querySelectorAll('.face-list-item');
-            items.forEach((item) => {
-                if (item.dataset.mode === 'free') {
-                    // Кнопка глобуса активна только в режиме свободного вращения
-                    item.classList.toggle('active', rotationMode === 'free' && selectedFaceIndex < 0);
-                } else {
-                    // Кнопки граней активны только в режиме грани
-                    const faceIndex = parseInt(item.dataset.faceIndex);
-                    item.classList.toggle('active', rotationMode === 'face' && faceIndex === selectedFaceIndex);
-                }
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === selectedFaceIndex);
             });
         }
 
@@ -2095,6 +1978,7 @@
                     
                     // Если было движение более 5 пикселей - это было перетаскивание, не клик
                     if (moveDistance > 5 || isDragging) {
+                        mouseDownPosition = null;
                         return;
                     }
                 }
@@ -2113,6 +1997,9 @@
                         registerInteraction();
                     }
                 }
+                
+                // В любом случае сбрасываем состояние "нажатия" после обработки клика
+                mouseDownPosition = null;
             });
 
             // Обработка тача для выбора грани на мобильных
@@ -2128,6 +2015,12 @@
 
             renderer.domElement.addEventListener('touchend', (e) => {
                 if (e.changedTouches.length === 1 && touchStartPos) {
+                    // Если был drag/rotate — не трактуем как тап (иначе после отпускания бывают рывки/перецентровка)
+                    if (isTouchDragging) {
+                        touchStartPos = null;
+                        return;
+                    }
+                    
                     const touchEnd = e.changedTouches[0];
                     const touchDuration = Date.now() - touchStartTime;
                     const touchDistance = Math.hypot(
@@ -2153,6 +2046,8 @@
                         }
                     }
                 }
+                
+                touchStartPos = null;
             });
         }
 
@@ -2539,13 +2434,6 @@
             // Выделяем новую грань (без подсветки)
             selectedFaceIndex = faceIndex;
             
-            // Переключаемся в режим грани
-            rotationMode = 'face';
-            isFaceMode = true;
-            
-            // Увеличиваем зум для режима грани (как плоская карта)
-            camera.position.z = 4;
-            
             // Обновляем визуальное выделение в списке граней
             updateFaceListSelection();
             
@@ -2563,14 +2451,6 @@
                 materials[selectedFaceIndex].emissiveIntensity = 0;
             }
             selectedFaceIndex = -1;
-            
-            // Возвращаемся в режим свободного вращения
-            rotationMode = 'free';
-            isFaceMode = false;
-            
-            // Возвращаем камеру в исходное положение
-            camera.position.z = initialCameraZ;
-            
             faceControlsPanel.classList.remove('active');
             updateFaceListSelection();
         }
@@ -2712,36 +2592,6 @@
                 
                 faceListElement.innerHTML = '';
                 
-                // Кнопка глобуса для свободного вращения (первая кнопка)
-                const globeBtn = document.createElement('button');
-                globeBtn.className = 'face-list-item';
-                globeBtn.textContent = '🌐';
-                globeBtn.title = 'Свободное вращение модели';
-                globeBtn.dataset.mode = 'free';
-                
-                globeBtn.addEventListener('click', () => {
-                    // Переключаемся в режим свободного вращения
-                    rotationMode = 'free';
-                    isFaceMode = false;
-                    deselectFace();
-                    
-                    // Обновляем визуальное выделение
-                    const items = faceListElement.querySelectorAll('.face-list-item');
-                    items.forEach(item => {
-                        item.classList.remove('active');
-                        if (item.dataset.mode === 'free') {
-                            item.classList.add('active');
-                        }
-                    });
-                    
-                    // Возвращаем камеру в исходное положение
-                    camera.position.set(0, 0, initialCameraZ);
-                    registerInteraction();
-                });
-                
-                faceListElement.appendChild(globeBtn);
-                
-                // Кнопки граней (1-12)
                 for (let i = 0; i < 12; i++) {
                     const btn = document.createElement('button');
                     btn.className = 'face-list-item';
@@ -2749,26 +2599,17 @@
                     btn.dataset.faceIndex = i.toString();
                     
                     btn.addEventListener('click', () => {
-                        // Переключаемся в режим грани
-                        rotationMode = 'face';
-                        isFaceMode = true;
-                        
                         // При выборе из списка: сразу вычисляем финальное положение с поворотом
                         selectFace(i);
                         centerOnFace(i, true); // Передаем true для применения поворота сразу
-                        
-                        // Увеличиваем зум для режима грани (как плоская карта)
-                        camera.position.z = 4; // Ближе к грани
-                        
                         registerInteraction();
                     });
                     
                     faceListElement.appendChild(btn);
                 }
                 
-                // По умолчанию - свободное вращение (кнопка глобуса активна)
-                rotationMode = 'free';
-                selectedFaceIndex = -1;
+                // Первоначальное выделение грани 1
+                selectedFaceIndex = 0;
                 updateFaceListSelection();
                 
             } catch (e) {
@@ -2783,68 +2624,16 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Функция применения инерции
-        function applyInertia(deltaTime) {
-            if (!window.dodecahedron || rotationMode !== 'free') return;
-            
-            // Применяем инерцию только если не идет перетаскивание
-            if (!isDragging && !isTouchDragging && (Math.abs(angularVelocity.x) > minVelocity || Math.abs(angularVelocity.y) > minVelocity)) {
-                // Вычисляем ось и угол вращения из угловой скорости
-                const speed = Math.sqrt(angularVelocity.x * angularVelocity.x + angularVelocity.y * angularVelocity.y);
-                if (speed > minVelocity) {
-                    // Создаем ось вращения из угловой скорости
-                    const axis = new THREE.Vector3(angularVelocity.y, -angularVelocity.x, 0).normalize();
-                    const angle = speed * deltaTime;
-                    
-                    if (angle > 0.0001) {
-                        const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-                        window.dodecahedron.quaternion.multiplyQuaternions(rotationQuaternion, window.dodecahedron.quaternion);
-                        
-                        const euler = new THREE.Euler().setFromQuaternion(window.dodecahedron.quaternion);
-                        window.dodecahedron.rotation.set(euler.x, euler.y, euler.z);
-                        
-                        targetRotation = { x: euler.x, y: euler.y, z: euler.z };
-                        currentRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    }
-                }
-                
-                // Применяем трение для замедления
-                angularVelocity.x *= friction;
-                angularVelocity.y *= friction;
-                
-                // Останавливаем, если скорость слишком мала
-                if (Math.abs(angularVelocity.x) < minVelocity) angularVelocity.x = 0;
-                if (Math.abs(angularVelocity.y) < minVelocity) angularVelocity.y = 0;
-            }
-        }
-        
         // Анимация
         let renderCallCount = 0;
-        let lastDeltaTime = null;
-        function animate(currentTime) {
+        function animate(time) {
             requestAnimationFrame(animate);
             
-            // Инициализация времени при первом вызове
-            if (lastDeltaTime === null) {
-                lastDeltaTime = currentTime;
-                return; // Пропускаем первый кадр для правильной инициализации
-            }
-            
-            // Оптимизация FPS для мобильных устройств
+            // Ограничиваем FPS на мобильных
             if (isMobile) {
-                if (lastFrameTime === 0) lastFrameTime = currentTime;
-                const elapsed = currentTime - lastFrameTime;
-                if (elapsed < frameInterval) {
-                    return; // Пропускаем кадр для снижения FPS
-                }
-                lastFrameTime = currentTime - (elapsed % frameInterval);
+                if (time - lastRenderTime < frameInterval) return;
+                lastRenderTime = time;
             }
-            
-            const deltaTime = isMobile ? frameInterval / 1000 : ((currentTime - lastDeltaTime) / 1000) || 0.016;
-            lastDeltaTime = currentTime;
-            
-            // Применяем инерцию для плавного вращения как глобус
-            applyInertia(deltaTime);
             
             // Плавное вращение додекаэдра
             smoothRotate();
@@ -2853,7 +2642,7 @@
             renderCallCount++;
             
             // #region agent log
-            if (renderCallCount <= 3 || renderCallCount % 60 === 0) {
+            if (DEBUG && (renderCallCount <= 3 || renderCallCount % 60 === 0)) {
                 const gl = renderer.getContext();
                 const frustum = new THREE.Frustum();
                 const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -2891,7 +2680,7 @@
         console.log('Рендерер:', renderer);
         
         
-        animate();
+        animate(performance.now());
     </script>
 </body>
 </html>
