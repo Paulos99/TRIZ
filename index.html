@@ -19,6 +19,12 @@
             width: 100vw;
             position: relative;
         }
+
+        :root {
+            /* Красная тема интерфейса */
+            --accentRgb: 255, 55, 55;
+            --accentRgb2: 255, 120, 120;
+        }
         
         /* Анимированный градиентный фон */
         body::before {
@@ -29,10 +35,10 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(circle at 20% 30%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 70%, rgba(150, 100, 255, 0.12) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(100, 200, 255, 0.08) 0%, transparent 60%),
-                linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 25%, #16213e 50%, #0f3460 75%, #0a0a1a 100%);
+                radial-gradient(circle at 20% 30%, rgba(255, 80, 80, 0.16) 0%, transparent 52%),
+                radial-gradient(circle at 80% 70%, rgba(255, 140, 140, 0.10) 0%, transparent 52%),
+                radial-gradient(circle at 50% 50%, rgba(255, 60, 60, 0.08) 0%, transparent 60%),
+                linear-gradient(135deg, #140607 0%, #2a0a0f 25%, #1b0b10 50%, #2d0a0a 75%, #140607 100%);
             background-size: 100% 100%, 100% 100%, 100% 100%, 400% 400%;
             animation: gradientShift 20s ease infinite, radialPulse 15s ease-in-out infinite;
             pointer-events: none;
@@ -72,8 +78,8 @@
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(ellipse at 30% 20%, rgba(120, 180, 255, 0.1) 0%, transparent 40%),
-                radial-gradient(ellipse at 70% 80%, rgba(180, 120, 255, 0.08) 0%, transparent 40%);
+                radial-gradient(ellipse at 30% 20%, rgba(255, 120, 120, 0.09) 0%, transparent 42%),
+                radial-gradient(ellipse at 70% 80%, rgba(255, 70, 70, 0.07) 0%, transparent 42%);
             animation: lightDrift 25s ease-in-out infinite;
             pointer-events: none;
             z-index: 0;
@@ -108,10 +114,10 @@
             transform: translateX(-50%);
             background: rgba(15, 15, 25, 0.92);
             backdrop-filter: blur(24px);
-            border: 1px solid rgba(100, 150, 255, 0.2);
+            border: 1px solid rgba(var(--accentRgb), 0.22);
             border-radius: 20px;
             padding: 14px 24px;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--accentRgb), 0.12) inset;
             display: flex;
             gap: 14px;
             align-items: center;
@@ -128,10 +134,10 @@
             transform: translateX(-50%);
             background: rgba(15, 15, 25, 0.92);
             backdrop-filter: blur(24px);
-            border: 1px solid rgba(100, 150, 255, 0.2);
+            border: 1px solid rgba(var(--accentRgb), 0.22);
             border-radius: 20px;
             padding: 14px 24px;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(100, 150, 255, 0.1) inset;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(var(--accentRgb), 0.12) inset;
             display: none;
             gap: 14px;
             align-items: center;
@@ -153,18 +159,18 @@
         }
 
         .btn-face {
-            background: rgba(100, 150, 255, 0.15);
-            border: 1px solid rgba(100, 150, 255, 0.3);
+            background: rgba(var(--accentRgb), 0.14);
+            border: 1px solid rgba(var(--accentRgb), 0.35);
             color: rgba(255, 255, 255, 0.9);
         }
 
         .btn-face:hover {
-            background: rgba(100, 150, 255, 0.25);
-            border-color: rgba(100, 150, 255, 0.4);
+            background: rgba(var(--accentRgb), 0.22);
+            border-color: rgba(var(--accentRgb), 0.5);
         }
 
         .btn-face:active {
-            background: rgba(100, 150, 255, 0.3);
+            background: rgba(var(--accentRgb), 0.28);
         }
 
         /* Список граней (номера 1–12) */
@@ -195,7 +201,7 @@
             min-width: 36px;
             height: 36px;
             border-radius: 10px;
-            border: 1px solid rgba(100, 150, 255, 0.25);
+            border: 1px solid rgba(var(--accentRgb), 0.28);
             background: rgba(30, 35, 50, 0.6);
             color: rgba(255, 255, 255, 0.85);
             font-size: 14px;
@@ -212,18 +218,18 @@
 
         .face-list-item:hover {
             background: rgba(50, 70, 100, 0.7);
-            border-color: rgba(100, 150, 255, 0.4);
+            border-color: rgba(var(--accentRgb), 0.55);
             transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(100, 150, 255, 0.25);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 18px rgba(var(--accentRgb), 0.22);
         }
 
         .face-list-item.active {
-            background: linear-gradient(135deg, rgba(100, 150, 255, 0.95) 0%, rgba(120, 170, 255, 0.95) 100%);
-            border-color: rgba(100, 150, 255, 1);
+            background: linear-gradient(135deg, rgba(var(--accentRgb), 0.96) 0%, rgba(var(--accentRgb2), 0.96) 100%);
+            border-color: rgba(var(--accentRgb), 1);
             color: #0a0a0f;
             font-weight: 700;
             transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(100, 150, 255, 0.5), 0 0 25px rgba(100, 150, 255, 0.4);
+            box-shadow: 0 6px 20px rgba(var(--accentRgb), 0.45), 0 0 28px rgba(var(--accentRgb), 0.32);
         }
 
         .control-group {
@@ -245,7 +251,7 @@
 
         .btn {
             background: rgba(30, 35, 50, 0.7);
-            border: 1px solid rgba(100, 150, 255, 0.25);
+            border: 1px solid rgba(var(--accentRgb), 0.28);
             color: rgba(255, 255, 255, 0.95);
             width: 48px;
             height: 48px;
@@ -257,20 +263,20 @@
             justify-content: center;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(12px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(100, 150, 255, 0);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(var(--accentRgb), 0);
         }
 
         .btn:hover {
             background: rgba(50, 70, 100, 0.8);
-            border-color: rgba(100, 150, 255, 0.5);
+            border-color: rgba(var(--accentRgb), 0.6);
             transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(100, 150, 255, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 20px rgba(var(--accentRgb), 0.28);
         }
 
         .btn:active {
             transform: translateY(0) scale(0.98);
             background: rgba(70, 100, 150, 0.9);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 10px rgba(100, 150, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(var(--accentRgb), 0.22);
         }
 
         .title {
@@ -284,8 +290,8 @@
             letter-spacing: 3px;
             z-index: 100;
             text-align: center;
-            text-shadow: 0 2px 20px rgba(100, 150, 255, 0.4), 0 0 40px rgba(100, 150, 255, 0.2);
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(200, 220, 255, 0.95) 100%);
+            text-shadow: 0 2px 20px rgba(var(--accentRgb), 0.35), 0 0 40px rgba(var(--accentRgb), 0.18);
+            background: linear-gradient(135deg, rgba(255, 245, 245, 0.98) 0%, rgba(var(--accentRgb2), 0.92) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -399,7 +405,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #0a0a0f;
+            background:
+                radial-gradient(circle at 50% 45%, rgba(var(--accentRgb), 0.14) 0%, transparent 55%),
+                radial-gradient(circle at 50% 70%, rgba(var(--accentRgb2), 0.10) 0%, transparent 60%),
+                #0a0a0f;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -421,28 +430,63 @@
             letter-spacing: 1px;
         }
 
-        .progress-bar-container {
-            width: 300px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            position: relative;
+        /* Новый лоадер: анимированные линии шестигранника */
+        .hex-loader {
+            width: 140px;
+            height: 140px;
+            margin: 0 0 14px 0;
+            filter: drop-shadow(0 0 18px rgba(var(--accentRgb), 0.25));
         }
 
-        .progress-bar {
+        .hex-loader svg {
+            width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, rgba(100, 150, 255, 0.8) 0%, rgba(120, 170, 255, 0.9) 100%);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-            box-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+            overflow: visible;
+        }
+
+        .hex-base {
+            fill: none;
+            stroke: rgba(var(--accentRgb), 0.22);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .hex-progress {
+            fill: none;
+            stroke: rgba(var(--accentRgb), 0.95);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 400;
+            stroke-dashoffset: 400;
+            transition: stroke-dashoffset 0.25s ease;
+            filter: drop-shadow(0 0 10px rgba(var(--accentRgb), 0.35));
+        }
+
+        .hex-scan {
+            fill: none;
+            stroke: rgba(var(--accentRgb2), 0.95);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 26 18;
+            animation: hexScan 1.15s linear infinite;
+            opacity: 0.9;
+        }
+
+        @keyframes hexScan {
+            0% { stroke-dashoffset: 0; opacity: 0.75; }
+            50% { opacity: 1; }
+            100% { stroke-dashoffset: -220; opacity: 0.75; }
         }
 
         .progress-percent {
-            color: rgba(255, 255, 255, 0.7);
+            color: rgba(var(--accentRgb2), 0.9);
             font-size: 14px;
             margin-top: 12px;
             font-weight: 300;
+            letter-spacing: 0.5px;
         }
 
         @media (max-width: 768px) {
@@ -450,8 +494,9 @@
                 font-size: 20px;
             }
 
-            .progress-bar-container {
-                width: 250px;
+            .hex-loader {
+                width: 120px;
+                height: 120px;
             }
         }
 
@@ -531,8 +576,15 @@
     <!-- Оверлей загрузки -->
     <div class="loading-overlay" id="loading-overlay">
         <div class="loading-text">Загрузка материалов..</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+        <div class="hex-loader" aria-label="Загрузка">
+            <svg viewBox="-60 -60 120 120" role="img" aria-hidden="true">
+                <!-- правильный шестиугольник -->
+                <polygon class="hex-base" points="0,-48 41.57,-24 41.57,24 0,48 -41.57,24 -41.57,-24"></polygon>
+                <!-- прогресс по обводке (управляется из JS) -->
+                <polygon class="hex-progress" id="hex-progress" points="0,-48 41.57,-24 41.57,24 0,48 -41.57,24 -41.57,-24"></polygon>
+                <!-- динамичная "бегущая" линия поверх -->
+                <polygon class="hex-scan" points="0,-48 41.57,-24 41.57,24 0,48 -41.57,24 -41.57,-24"></polygon>
+            </svg>
         </div>
         <div class="progress-percent" id="progress-percent">0%</div>
     </div>
@@ -639,7 +691,9 @@
             }
         };
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        // Качество рендера: ограничиваем DPR, чтобы было резко, но не убивало производительность
+        const maxDPR = isMobile ? 1.25 : 2.0;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDPR));
         // Возвращаем исходный тёмный фон
         // Полупрозрачный фон для видимости градиента
         renderer.setClearColor(0x0a0a0f, 0.3);
@@ -771,6 +825,9 @@
             texture.wrapS = THREE.ClampToEdgeWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
             texture.flipY = false; // Важно для правильной ориентации
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
             return texture;
         }
         
@@ -791,12 +848,20 @@
             const texture = new THREE.CanvasTexture(canvas);
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.generateMipmaps = false;
             return texture;
         }
         
         // Функция загрузки изображения с обработкой CORS
         function loadImageAsTexture(filename) {
             return new Promise((resolve, reject) => {
+                
+                const maxAnisotropy = renderer.capabilities && renderer.capabilities.getMaxAnisotropy
+                    ? renderer.capabilities.getMaxAnisotropy()
+                    : 1;
+                const anisotropy = Math.min(8, maxAnisotropy || 1); // 8 обычно хватает, выше редко заметно
                 
                 const textureLoader = new THREE.TextureLoader();
                 
@@ -823,6 +888,7 @@
                         texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
                         texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
                         texture.magFilter = THREE.LinearFilter;
+                        texture.anisotropy = anisotropy;
                         // Зеркальное отражение текстуры по горизонтали
                         texture.offset.set(1, 0);
                         texture.repeat.set(-1, 1);
@@ -855,6 +921,7 @@
                                 texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
                                 texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
                                 texture.magFilter = THREE.LinearFilter;
+                                texture.anisotropy = anisotropy;
                                 // Зеркальное отражение текстуры по горизонтали
                                 texture.offset.set(1, 0);
                                 texture.repeat.set(-1, 1);
@@ -875,6 +942,7 @@
                                 texture.generateMipmaps = false; // Отключаем мипмапы для PNG с прозрачностью
                                 texture.minFilter = THREE.LinearFilter; // Используем линейную фильтрацию без мипмапов
                                 texture.magFilter = THREE.LinearFilter;
+                                texture.anisotropy = anisotropy;
                                 // Зеркальное отражение текстуры по горизонтали
                                 texture.offset.set(1, 0);
                                 texture.repeat.set(-1, 1);
@@ -1072,12 +1140,27 @@
         const loadingOverlay = document.getElementById('loading-overlay');
         const progressBar = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
+        const hexProgress = document.getElementById('hex-progress');
+        let hexProgressLen = null;
+        if (hexProgress && typeof hexProgress.getTotalLength === 'function') {
+            try {
+                hexProgressLen = hexProgress.getTotalLength();
+                hexProgress.style.strokeDasharray = String(hexProgressLen);
+                hexProgress.style.strokeDashoffset = String(hexProgressLen);
+            } catch (e) {
+                hexProgressLen = null;
+            }
+        }
         
         // Функция обновления прогресса
         function updateProgress(loaded, total) {
             const percent = Math.round((loaded / total) * 100);
-            progressBar.style.width = percent + '%';
+            if (progressBar) progressBar.style.width = percent + '%';
             progressPercent.textContent = percent + '%';
+            if (hexProgress && hexProgressLen) {
+                const t = Math.max(0, Math.min(1, percent / 100));
+                hexProgress.style.strokeDashoffset = String(hexProgressLen * (1 - t));
+            }
         }
         
         // Объявляем массив ориентаций граней (будет заполнен при формировании граней)
@@ -1176,6 +1259,10 @@
                     texture.generateMipmaps = false;
                     texture.minFilter = THREE.LinearFilter;
                     texture.magFilter = THREE.LinearFilter;
+                    // Улучшает четкость под углом (особенно текст) — почти бесплатно на десктопе
+                    if (renderer.capabilities && renderer.capabilities.getMaxAnisotropy) {
+                        texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy() || 1);
+                    }
                     texture.needsUpdate = true;
                     
                     // Применяем текстуру с зеркальным отражением
@@ -1704,11 +1791,8 @@
         }
         
         // Производительность: на слабых мобильных режем нагрузку
-        // 1) меньше пикселей рендерить (главное ускорение)
+        // 1) ограничиваем DPR (выше)
         // 2) ограничиваем FPS
-        if (isMobile) {
-            renderer.setPixelRatio(1);
-        }
         const targetFPS = isMobile ? 30 : 60;
         const frameInterval = 1000 / targetFPS;
         let lastRenderTime = 0;
@@ -1949,7 +2033,8 @@
                     const worldAxis = new THREE.Vector3(0, 0, -1); // ось вдоль взгляда камеры
                     
                     const currentQuaternion = window.dodecahedron.quaternion.clone();
-                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, -angleDelta * rotationSensitivity);
+                    // Интуитивно: крутим по часовой => модель крутится по часовой
+                    const rotationQuaternion = new THREE.Quaternion().setFromAxisAngle(worldAxis, +angleDelta * rotationSensitivity);
                     const newQuaternion = rotationQuaternion.multiply(currentQuaternion);
                     window.dodecahedron.quaternion.copy(newQuaternion);
                     targetQuaternion.copy(newQuaternion);
@@ -1958,7 +2043,7 @@
                     const euler = new THREE.Euler().setFromQuaternion(newQuaternion);
                     targetRotation = { x: euler.x, y: euler.y, z: euler.z };
                     currentRotation = { x: euler.x, y: euler.y, z: euler.z };
-                    logInteraction('touch:2:rotate', { applied: +(-angleDelta).toFixed(4) }, 100);
+                    logInteraction('touch:2:rotate', { applied: +(angleDelta).toFixed(4) }, 100);
                 }
                 
                 // Обновляем значения для следующей итерации
@@ -2817,6 +2902,9 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            // сохраняем качество после ресайза/поворота экрана
+            const maxDPR = isMobile ? 1.25 : 2.0;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDPR));
         });
 
         // Анимация
