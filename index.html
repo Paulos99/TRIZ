@@ -1728,7 +1728,7 @@
         // Режимы взаимодействия:
         // - selectedFaceIndex === -1: свободное вращение как глобус
         // - selectedFaceIndex >= 0: режим плоскости выбранной грани (пан + зум как карта)
-        const facePlaneDefaultZ = 4.5; // "карта" ближе к камере
+        const facePlaneDefaultZ = 6.75; // "карта" дальше (уменьшено приближение в 1.5 раза)
         let panOffset = { x: 0, y: 0 };
         
         function setPan(x, y) {
@@ -1795,7 +1795,8 @@
                     );
                 } else {
                     // Свободное вращение (глобус) — через кватернионы (без Euler, чтобы не было "скачков")
-                    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * rotationSpeed);
+                    // Интуитивное направление: тянем вправо => модель поворачивается вправо
+                    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), +deltaX * rotationSpeed);
                     const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), +deltaY * rotationSpeed);
                     window.dodecahedron.quaternion.premultiply(qy);
                     window.dodecahedron.quaternion.premultiply(qx);
@@ -1987,7 +1988,8 @@
                 } else {
                     // Вращение модели (свободно) — инкрементально через кватернионы
                     const sensitivity = 0.006; // -40%
-                    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * sensitivity);
+                    // Интуитивное направление: свайп вправо => модель поворачивается вправо
+                    const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), +deltaX * sensitivity);
                     const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), +deltaY * sensitivity);
                     window.dodecahedron.quaternion.premultiply(qy);
                     window.dodecahedron.quaternion.premultiply(qx);
