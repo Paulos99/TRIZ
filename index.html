@@ -646,6 +646,9 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // Определение мобильного устройства (нужно ДО настройки renderer)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
         // Инициализация сцены
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(
@@ -1707,8 +1710,6 @@
             }
         }, 100); // Небольшая задержка для гарантии, что все инициализировано
 
-        // Определение мобильного устройства
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const DEBUG = !isMobile;
         const DEBUG_INTERACTION =
             new URLSearchParams(window.location.search).has('debug') ||
